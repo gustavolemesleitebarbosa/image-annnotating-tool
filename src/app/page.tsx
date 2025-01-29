@@ -5,6 +5,10 @@ import dynamic from "next/dynamic";
 import ColorPicker from "~/components/ColorPicker/ColorPicker";
 import { type Class } from "~/Types/Class";
 import ClassPicker from "~/components/ClassPicker/ClassPicker";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import toast, { Toaster } from 'react-hot-toast';
 
 const initialClasses: Class[] = [
   {
@@ -50,14 +54,31 @@ const Canvas = dynamic(() => import("../components/Canvas/Canvas"), {
   ssr: false,
 });
 
+const getInitialClasses = (): Class[] => {
+  if (typeof window === 'undefined') return initialClasses;
+  
+  const savedClasses = localStorage.getItem('classes');
+  if (!savedClasses) {
+    localStorage.setItem('classes', JSON.stringify(initialClasses));
+    return initialClasses;
+  }
+  
+  try {
+    const parsed = JSON.parse(savedClasses) as Class[];
+    if (!Array.isArray(parsed)) return initialClasses;
+    return parsed;
+  } catch {
+    return initialClasses;
+  }
+};
+
 export default function Home() {
   const [tool, setTool] = useState<"brush" | "polygon" | "eraser">("brush");
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [showColorPicker, setShowColorPicker] = useState<Class[]>([]);
   const [newClassName, setNewClassName] = useState<string>("");
   const [newClassColor, setNewClassColor] = useState<string>("");
-  const [classes, setClasses] = useState<Class[]>(initialClasses);
+  const [classes, setClasses] = useState<Class[]>(() => getInitialClasses());
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,8 +105,40 @@ export default function Home() {
     hover:bg-[#f5f5dc]
   `;
 
+  const handleAddClass = () => {
+    const previousTakenColors = classes.map(classElement => classElement.color);
+
+    if (!newClassName || !newClassColor) {
+      toast.error('Please fill in both name and color');
+      return;
+    }
+    if (previousTakenColors.includes(newClassColor)) {
+      toast.error('Color already taken');
+      return;
+    }
+
+    if (!newClassName || !newClassColor) {
+      toast.error('Please fill in both name and color');
+      return;
+    }
+    
+    const newClass: Class = {
+      id: Math.max(...classes.map(c => c.id)) + 1,
+      name: newClassName,
+      color: newClassColor
+    };
+    
+    const updatedClasses = [...classes, newClass];
+    setClasses(updatedClasses);
+    localStorage.setItem('classes', JSON.stringify(updatedClasses));
+    setNewClassName("");
+    setNewClassColor("");
+    toast.success(`Class "${newClassName}" added successfully!`);
+  };
+
   return (
     <div className="flex h-screen w-screen flex-col">
+      <Toaster position="top-right" />
       {/* Header */}
       <div className="flex w-full justify-end border-b bg-white p-4 shadow-sm">
         <button
@@ -162,15 +215,47 @@ export default function Home() {
             selectedClass={selectedClass}
             classes={classes}
           />
-          <button className="mb-4 rounded bg-gray-200 p-2">
-            Add a new Class
-          </button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="mt-6 w-full">Add a new Class</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Class</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <label htmlFor="name">Class Name</label>
+                  <Input
+                    id="name"
+                    value={newClassName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClassName(e.target.value)}
+                    placeholder="Enter class name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="color">Class Color</label>
+                  <div className="relative">
+                    <Input
+                      id="color"
+                      value={newClassColor}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClassColor(e.target.value)}
+                      placeholder="#000000"
+                    />
+                    <ColorPicker 
+                      color={newClassColor}
+                      initialColor={newClassColor || "#ff0000"}
+                      onChange={setNewClassColor}
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleAddClass}>Add Class</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           <div className="relative bottom-64 left-24">
-            {/* <ColorPicker/> */}
           </div>
         </div>
-
-        {/* Canvas Area */}
         <div className="flex-1">
           <Canvas selectedClass={selectedClass} tool={tool} brushSize={brushSize} imageUrl={imageUrl} />
         </div>

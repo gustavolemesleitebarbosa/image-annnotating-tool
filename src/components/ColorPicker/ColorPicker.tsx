@@ -1,23 +1,23 @@
 import React, { useState } from "react";
 import { SketchPicker, type RGBColor } from "react-color";
 
-const ColorPicker = () => {
-  const [color, setColor] = useState("#ff0000");
+interface ColorPickerProps {
+  onChange: (color: string) => void;
+  color?: string;
+  initialColor?: string;
+}
+
+const ColorPicker = ({color ,onChange, initialColor = "#ff0000" }: ColorPickerProps) => {
+
+  const handleChange = (result: { hex: string; rgb: RGBColor }) => {
+    onChange(result.hex);
+  };
 
   return (
-    <div className="absolute top-0 right-0">
+    <div className="flex justify-center w-full my-3">
       <SketchPicker
-        color={color}
-        onChange={(result: { hex: string; rgb: RGBColor }) => setColor(result.hex)}
-      />
-      <p>Selected Color: {color}</p>
-      <div
-        style={{
-          width: "50px",
-          height: "50px",
-          background: color,
-          marginTop: "10px",
-        }}
+        color={color?? initialColor}
+        onChange={handleChange}
       />
     </div>
   );
