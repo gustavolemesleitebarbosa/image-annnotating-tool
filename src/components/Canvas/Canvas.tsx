@@ -2,14 +2,16 @@
 
 import { useEffect, useRef } from 'react';
 import { Canvas as FabricCanvas,  FabricImage, PencilBrush } from 'fabric';
+import type { Class } from '~/Types/Class';
 
 interface CanvasProps {
   tool: 'brush' | 'polygon' | 'eraser';
   brushSize: number;
   imageUrl: string | null;
+  selectedClass: Class | null;
 }
 
-const Canvas = ({ tool, brushSize, imageUrl }: CanvasProps) => {
+const Canvas = ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps) => {
   const canvasRef = useRef<FabricCanvas>();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +37,17 @@ const Canvas = ({ tool, brushSize, imageUrl }: CanvasProps) => {
     return () => {
       void canvasRef.current?.dispose();
     };
-  }, []);
+  }, []); // Only run once on mount
+
+  // Update brush color when selected class changes
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    
+    const brush = canvasRef.current.freeDrawingBrush;
+    if (brush) {
+      brush.color = selectedClass?.color ?? '#f0f0f0';
+    }
+  }, [selectedClass?.color]);
 
   // Handle image loading
   useEffect(() => {
@@ -103,12 +115,12 @@ const Canvas = ({ tool, brushSize, imageUrl }: CanvasProps) => {
       canvasRef.current.isDrawingMode = true;
       const brush = new PencilBrush(canvasRef.current);
       brush.width = brushSize;
-      brush.color = '#000000';
+      brush.color = selectedClass?.color ?? '#f0f0f0';
       canvasRef.current.freeDrawingBrush = brush;
     } else {
       canvasRef.current.isDrawingMode = false;
     }
-  }, [tool, brushSize]);
+  }, [tool, brushSize, selectedClass?.color]);
 
   return (
     <div 
