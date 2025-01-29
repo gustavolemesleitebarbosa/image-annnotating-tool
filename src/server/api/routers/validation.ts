@@ -14,7 +14,7 @@ const posts: Post[] = [
   },
 ];
 
-export const postRouter = createTRPCRouter({
+export const validationRouter = createTRPCRouter({
   hello: publicProcedure
     .input(z.object({ text: z.string() }))
     .query(({ input }) => {
