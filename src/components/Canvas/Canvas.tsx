@@ -29,7 +29,7 @@ type CanvasState = {
 
 const Canvas = forwardRef(
   ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps, ref) => {
-    const canvasRef = useRef<FabricCanvas>();
+    const mainCanvasRef = useRef<FabricCanvas>();
     const containerRef = useRef<HTMLDivElement>(null);
     const historyRef = useRef<CanvasState[]>([]);
     const currentPolygonPoints = useRef<Circle[]>([]);
@@ -37,9 +37,9 @@ const Canvas = forwardRef(
     const CLOSE_THRESHOLD = 10; // Threshold distance to close polygon
 
     const saveCanvasState = () => {
-      if (!canvasRef.current || isRestoringState.current) return;
+      if (!mainCanvasRef.current || isRestoringState.current) return;
 
-      const state = canvasRef.current.toJSON() as CanvasState;
+      const state = mainCanvasRef.current.toJSON() as CanvasState;
       historyRef.current = [...historyRef.current, state];
 
       // Keep only last 50 states
@@ -50,12 +50,12 @@ const Canvas = forwardRef(
     };
 
     const clearCanvas = () => {
-      if (!canvasRef.current) return;
-      canvasRef.current.remove(...canvasRef.current.getObjects());
+      if (!mainCanvasRef.current) return;
+      mainCanvasRef.current.remove(...mainCanvasRef.current.getObjects());
     };
 
     const undo = () => {
-      if (!canvasRef.current || historyRef.current.length <= 1) return;
+      if (!mainCanvasRef.current || historyRef.current.length <= 1) return;
 
       isRestoringState.current = true;
       clearCanvas();
@@ -72,7 +72,7 @@ const Canvas = forwardRef(
         return;
       }
 
-      const canvas = canvasRef.current;
+      const canvas = mainCanvasRef.current;
 
       // Restore objects using the imported util
       void util.enlivenObjects(previousState.objects).then((objs) => {
@@ -92,17 +92,17 @@ const Canvas = forwardRef(
       if (!containerRef.current) return;
 
       const container = containerRef.current;
-      canvasRef.current = new FabricCanvas("canvas", {
+      mainCanvasRef.current = new FabricCanvas("mainCanvas", {
         width: container.clientWidth || 800,
         height: container.clientHeight || 600,
         backgroundColor: hexToRgba("#f0f0f0", 0.35),
         isDrawingMode: false,
       });
 
-      const brush = new PencilBrush(canvasRef.current);
-      canvasRef.current.freeDrawingBrush = brush;
+      const brush = new PencilBrush(mainCanvasRef.current);
+      mainCanvasRef.current.freeDrawingBrush = brush;
 
-      const canvas = canvasRef.current;
+      const canvas = mainCanvasRef.current;
 
       // Save state only when user finishes drawing
       canvas.on("after:render", () => {
@@ -123,9 +123,9 @@ const Canvas = forwardRef(
     }, []);
 
     useEffect(() => {
-      if (!canvasRef.current) return;
+      if (!mainCanvasRef.current) return;
 
-      const brush = canvasRef.current.freeDrawingBrush;
+      const brush = mainCanvasRef.current.freeDrawingBrush;
       if (brush) {
         brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
       }
@@ -134,7 +134,7 @@ const Canvas = forwardRef(
     // Handle image loading
     useEffect(() => {
       const loadImage = async () => {
-        if (!imageUrl || !canvasRef.current) return;
+        if (!imageUrl || !mainCanvasRef.current) return;
 
         try {
           // Create a new HTML Image element
@@ -151,11 +151,11 @@ const Canvas = forwardRef(
           const fabricImage = new FabricImage(img);
 
           // Clear existing canvas
-          canvasRef.current.clear();
+          mainCanvasRef.current.clear();
 
           // Get canvas dimensions
-          const canvasWidth = canvasRef.current.getWidth();
-          const canvasHeight = canvasRef.current.getHeight();
+          const canvasWidth = mainCanvasRef.current.getWidth();
+          const canvasHeight = mainCanvasRef.current.getHeight();
 
           // Calculate scaling to fit the canvas while maintaining aspect ratio
           const scaleX = canvasWidth / fabricImage.width;
@@ -172,7 +172,7 @@ const Canvas = forwardRef(
           });
 
           // Add image to canvas
-          canvasRef.current.backgroundImage = fabricImage;
+          mainCanvasRef.current.backgroundImage = fabricImage;
 
         } catch (error) {
           console.error("Error loading image:", error);
@@ -184,32 +184,32 @@ const Canvas = forwardRef(
 
     // Handle tool changes
     useEffect(() => {
-      if (!canvasRef.current) return;
+      if (!mainCanvasRef.current) return;
       if (!tool) {
-        canvasRef.current.isDrawingMode = false;
+        mainCanvasRef.current.isDrawingMode = false;
         return;
       }
       // Remove event listeners for polygon tool
       if (tool !== "polygon") {
-        canvasRef.current.off("mouse:down");
+        mainCanvasRef.current.off("mouse:down");
       }
 
       if (tool === "eraser") {
-        canvasRef.current.isDrawingMode = true;
-        const brush = new PencilBrush(canvasRef.current);
+        mainCanvasRef.current.isDrawingMode = true;
+        const brush = new PencilBrush(mainCanvasRef.current);
         brush.width = brushSize;
         brush.color = hexToRgba("#f0f0f0", 0.35);
-        canvasRef.current.freeDrawingBrush = brush;
+        mainCanvasRef.current.freeDrawingBrush = brush;
       } else if (tool === "brush") {
-        canvasRef.current.isDrawingMode = true;
+        mainCanvasRef.current.isDrawingMode = true;
 
-        const brush = new PencilBrush(canvasRef.current);
+        const brush = new PencilBrush(mainCanvasRef.current);
         brush.width = brushSize;
         brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
-        canvasRef.current.freeDrawingBrush = brush;
+        mainCanvasRef.current.freeDrawingBrush = brush;
       } else if (tool === "polygon") {
-        canvasRef.current.isDrawingMode = false;
-        const canvas = canvasRef.current;
+        mainCanvasRef.current.isDrawingMode = false;
+        const canvas = mainCanvasRef.current;
 
         const handleMouseDown = (event: fabric.IEvent) => {
           const pointer = canvas.getPointer(event.e);
@@ -351,7 +351,7 @@ const Canvas = forwardRef(
         className="relative h-full min-h-[600px] w-full"
         style={{ touchAction: "none" }}
       >
-        <canvas id="canvas" />
+        <canvas id="mainCanvas" />
       </div>
     );
   },
