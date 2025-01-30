@@ -9,6 +9,7 @@ import {
   util,
 } from "fabric";
 import type { Class } from "~/Types/Class";
+import { hexToRgba } from "~/utils/colors";
 
 interface CanvasProps {
   tool: "brush" | "polygon" | "eraser";
@@ -91,13 +92,13 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
     canvasRef.current = new FabricCanvas("canvas", {
       width: container.clientWidth || 800,
       height: container.clientHeight || 600,
-      backgroundColor: "#f0f0f0",
+      backgroundColor: hexToRgba("#f0f0f0",  0.35),
       isDrawingMode: true,
     });
   
     const brush = new PencilBrush(canvasRef.current);
     canvasRef.current.freeDrawingBrush = brush;
-  
+
     const canvas = canvasRef.current;
   
     // Save state only when user finishes drawing
@@ -123,7 +124,7 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
 
     const brush = canvasRef.current.freeDrawingBrush;
     if (brush) {
-      brush.color = selectedClass?.color ?? "#f0f0f0";
+      brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
     }
   }, [selectedClass?.color]);
 
@@ -186,13 +187,13 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
       canvasRef.current.isDrawingMode = true;
       const brush = new PencilBrush(canvasRef.current);
       brush.width = brushSize;
-      brush.color = "#f0f0f0";
+      brush.color = hexToRgba("#f0f0f0", 0.35);
       canvasRef.current.freeDrawingBrush = brush;
     } else if (tool === "brush") {
       canvasRef.current.isDrawingMode = true;
       const brush = new PencilBrush(canvasRef.current);
       brush.width = brushSize;
-      brush.color = selectedClass?.color ?? "#f0f0f0";
+      brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
       canvasRef.current.freeDrawingBrush = brush;
     } else {
       canvasRef.current.isDrawingMode = false;
