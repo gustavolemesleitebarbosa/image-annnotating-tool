@@ -111,7 +111,18 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
     // Save initial state
     saveCanvasState();
   
+    // Keyboard shortcut for undo (Command + Z or Control + Z)
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+        event.preventDefault(); // Prevent default behavior
+        undo(); // Call the undo function
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      window.removeEventListener('keydown', handleKeyDown);
       if (canvas) {
         canvas.off('after:render');
         void canvas.dispose();
