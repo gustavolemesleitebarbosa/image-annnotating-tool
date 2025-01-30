@@ -5,6 +5,9 @@ import {
   Canvas as FabricCanvas,
   FabricImage,
   type FabricObject,
+  Circle,
+  Line,
+  Polygon,
   PencilBrush,
   util,
 } from "fabric";
@@ -28,7 +31,9 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
   const canvasRef = useRef<FabricCanvas>();
   const containerRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<CanvasState[]>([]);
+  const currentPolygonPoints = useRef<Circle[]>([]);
   const isRestoringState = useRef(false);
+  const CLOSE_THRESHOLD = 10; // Threshold distance to close polygon
 
   const saveCanvasState = () => {
     if (!canvasRef.current || isRestoringState.current) return;
@@ -111,18 +116,7 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
     // Save initial state
     saveCanvasState();
   
-    // Keyboard shortcut for undo (Command + Z or Control + Z)
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
-        event.preventDefault(); // Prevent default behavior
-        undo(); // Call the undo function
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
       if (canvas) {
         canvas.off('after:render');
         void canvas.dispose();
@@ -193,6 +187,10 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
   // Handle tool changes
   useEffect(() => {
     if (!canvasRef.current) return;
+    // Remove event listeners for polygon tool
+    if(tool !== "polygon"){
+      canvasRef.current.off("mouse:down");
+    }
 
     if (tool === "eraser") {
       canvasRef.current.isDrawingMode = true;
@@ -202,14 +200,146 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
       canvasRef.current.freeDrawingBrush = brush;
     } else if (tool === "brush") {
       canvasRef.current.isDrawingMode = true;
+      
       const brush = new PencilBrush(canvasRef.current);
       brush.width = brushSize;
       brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
       canvasRef.current.freeDrawingBrush = brush;
-    } else {
+    } else  if (tool === "polygon") {
       canvasRef.current.isDrawingMode = false;
+      const canvas = canvasRef.current;
+
+      const handleMouseDown = (event: fabric.IEvent) => {
+        const pointer = canvas.getPointer(event.e);
+        const positionX = pointer.x;
+        const positionY = pointer.y;
+
+        // Add small circle as an indicative point
+        const circlePoint = new Circle({
+          radius: 5,
+          fill: hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35),
+          left: positionX,
+          top: positionY,
+          selectable: false,
+          originX: "center",
+          originY: "center",
+          hoverCursor: "auto",
+        });
+
+        canvas.add(circlePoint);
+        currentPolygonPoints.current = [
+          ...currentPolygonPoints.current,
+          circlePoint,
+        ];
+
+        // Check if the polygon should be closed
+        if (currentPolygonPoints.current.length > 2) {
+          const firstPoint = currentPolygonPoints.current[0];
+          const dx = positionX - firstPoint.get("left");
+          const dy = positionY - firstPoint.get("top");
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance <= CLOSE_THRESHOLD) {
+            // Close the polygon
+            const lastPoint =
+              currentPolygonPoints.current[
+                currentPolygonPoints.current.length - 1
+              ];
+
+            // Draw closing line
+            const closingLine = new Line(
+              [
+                lastPoint.get("left"),
+                lastPoint.get("top"),
+                firstPoint.get("left"),
+                firstPoint.get("top"),
+              ],
+              {
+                stroke: hexToRgba(selectedClass?.color ?? "#000000", 0.8),
+                strokeWidth: 2,
+                hasControls: false,
+                hasBorders: false,
+                selectable: false,
+                lockMovementX: true,
+                lockMovementY: true,
+                hoverCursor: "default",
+                originX: "center",
+                originY: "center",
+              }
+            );
+            canvas.add(closingLine);
+
+            // Create polygon from points
+            const polygonPoints = currentPolygonPoints.current.map((point) => {
+              return {
+                x: point.get("left"),
+                y: point.get("top"),
+              };
+            });
+
+            const polygon = new Polygon(polygonPoints, {
+              fill: hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35),
+              stroke: hexToRgba(selectedClass?.color ?? "#000000", 0.8),
+              strokeWidth: 2,
+              selectable: false,
+            });
+
+            canvas.add(polygon);
+
+            // Remove lines and points
+            canvas.remove(...currentPolygonPoints.current);
+            canvas.remove(closingLine);
+            currentPolygonPoints.current = [];
+
+            canvas.renderAll();
+            return;
+          }
+        }
+
+        // Draw line to previous point
+        if (currentPolygonPoints.current.length > 1) {
+          const startPoint =
+            currentPolygonPoints.current[
+              currentPolygonPoints.current.length - 2
+            ];
+          const endPoint =
+            currentPolygonPoints.current[
+              currentPolygonPoints.current.length - 1
+            ];
+
+          const line = new Line(
+            [
+              startPoint.get("left"),
+              startPoint.get("top"),
+              endPoint.get("left"),
+              endPoint.get("top"),
+            ],
+            {
+              stroke: hexToRgba(selectedClass?.color ?? "#000000", 0.8),
+              strokeWidth: 2,
+              hasControls: false,
+              hasBorders: false,
+              selectable: false,
+              lockMovementX: true,
+              lockMovementY: true,
+              hoverCursor: "default",
+              originX: "center",
+              originY: "center",
+            }
+          );
+
+          canvas.add(line);
+        }
+      };
+
+      canvas.on("mouse:down", handleMouseDown);
+
+      // Clean up event listener when the tool changes
+      return () => {
+        canvas.off("mouse:down", handleMouseDown);
+      };
     }
-  }, [tool, brushSize, selectedClass?.color]);
+  }, [tool, selectedClass]);
 
   return (
     <div
