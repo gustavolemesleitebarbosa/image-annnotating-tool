@@ -4,11 +4,25 @@ import { useState, useRef } from "react";
 import ColorPicker from "~/components/ColorPicker/ColorPicker";
 import { type Class } from "~/Types/Class";
 import ClassPicker from "~/components/ClassPicker/ClassPicker";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import toast, { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from "react-hot-toast";
 import Canvas from "~/components/Canvas/Canvas";
+import {
+  FaUpload,
+  FaPaintBrush,
+  FaDrawPolygon,
+  FaEraser,
+  FaUndo,
+  FaDownload,
+} from "react-icons/fa";
 
 const initialClasses: Class[] = [
   {
@@ -49,14 +63,14 @@ const initialClasses: Class[] = [
 ];
 
 const getInitialClasses = (): Class[] => {
-  if (typeof window === 'undefined') return initialClasses;
-  
-  const savedClasses = localStorage.getItem('classes');
+  if (typeof window === "undefined") return initialClasses;
+
+  const savedClasses = localStorage.getItem("classes");
   if (!savedClasses) {
-    localStorage.setItem('classes', JSON.stringify(initialClasses));
+    localStorage.setItem("classes", JSON.stringify(initialClasses));
     return initialClasses;
   }
-  
+
   try {
     const parsed = JSON.parse(savedClasses) as Class[];
     if (!Array.isArray(parsed)) return initialClasses;
@@ -67,7 +81,7 @@ const getInitialClasses = (): Class[] => {
 };
 
 export default function Home() {
-  const [tool, setTool] = useState<"brush" | "polygon" | "eraser"| null>(null);
+  const [tool, setTool] = useState<"brush" | "polygon" | "eraser" | null>(null);
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [newClassName, setNewClassName] = useState<string>("");
@@ -95,37 +109,39 @@ export default function Home() {
   };
 
   const buttonClass = (isActive: boolean) => `
-    w-full p-2 rounded 
-    ${isActive ? "bg-[#f5f5dc]" : "bg-gray-200"} 
-    hover:bg-[#f5f5dc]
+    w-full flex items-center justify-center rounded text-xs md:text-sm
+    ${isActive ? "bg-black text-white" : "bg-gray-300 text-black"} 
+    hover:bg-[#a2c2dc]
   `;
 
   const handleAddClass = () => {
-    const previousTakenColors = classes.map(classElement => classElement.color);
+    const previousTakenColors = classes.map(
+      (classElement) => classElement.color,
+    );
 
     if (!newClassName || !newClassColor) {
-      toast.error('Please fill in both name and color');
+      toast.error("Please fill in both name and color");
       return;
     }
     if (previousTakenColors.includes(newClassColor)) {
-      toast.error('Color already taken');
+      toast.error("Color already taken");
       return;
     }
 
     if (!newClassName || !newClassColor) {
-      toast.error('Please fill in both name and color');
+      toast.error("Please fill in both name and color");
       return;
     }
-    
+
     const newClass: Class = {
-      id: Math.max(...classes.map(c => c.id)) + 1,
+      id: Math.max(...classes.map((c) => c.id)) + 1,
       name: newClassName,
-      color: newClassColor
+      color: newClassColor,
     };
-    
+
     const updatedClasses = [...classes, newClass];
     setClasses(updatedClasses);
-    localStorage.setItem('classes', JSON.stringify(updatedClasses));
+    localStorage.setItem("classes", JSON.stringify(updatedClasses));
     setNewClassName("");
     setNewClassColor("");
     toast.success(`Class "${newClassName}" added successfully!`);
@@ -143,24 +159,73 @@ export default function Home() {
       return;
     }
     setTool(tool);
-  }
+  };
 
   return (
     <div className="flex h-screen w-screen flex-col">
       <Toaster position="top-right" />
       {/* Header */}
-      <div className="flex w-full justify-end border-b bg-white p-4 shadow-sm">
-        <Button
-          onClick={handleExport}
-          className="rounded bg-gray-200 px-4 py-2 hover:bg-[#f5f5dc]"
-        >
-          Export COCO
-        </Button>
-      </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex w-64 flex-col bg-white p-4 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold">Tools</h2>
+        <div className="flex w-64 flex-col bg-white p-4 shadow-2xl">
+          <h2 className="mb-4 md:text-lg text-sm font-bold">Classes</h2>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button  className={buttonClass(false)}>
+                Add a new Class
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Class</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <label htmlFor="name">Class Name</label>
+                  <Input
+                    id="name"
+                    value={newClassName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setNewClassName(e.target.value)
+                    }
+                    placeholder="Enter class name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="color">Class Color</label>
+                  <div className="relative">
+                    <Input
+                      id="color"
+                      value={newClassColor}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setNewClassColor(e.target.value)
+                      }
+                      placeholder="#000000"
+                    />
+                    <ColorPicker
+                      color={newClassColor}
+                      initialColor={newClassColor || "#ff0000"}
+                      onChange={setNewClassColor}
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleAddClass}>Add Class</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <div className="mt-4">
+            <h5 className="mb-4 text-sm md:text-base">Select a Class </h5>
+
+            <ClassPicker
+              onClassSelect={(selectedClass) => {
+                if (selectedClass) {
+                  setSelectedClass(selectedClass);
+                }
+              }}
+              selectedClass={selectedClass}
+              classes={classes}
+            />
+          </div>
 
           <div className="mb-4">
             <input
@@ -170,38 +235,44 @@ export default function Home() {
               accept="image/*"
               className="hidden"
             />
-            <button
+            <h2 className="mb-5  font-bold mt-6 border-t-2 pt-2 border-gray-500 md:text-lg text-sm ">Upload</h2>
+
+            <Button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded bg-gray-200 p-2 hover:bg-[#f5f5dc]"
+              className={buttonClass(false)}
             >
+              <FaUpload color="black" className="mr-2" />
               Upload Image
-            </button>
+            </Button>
           </div>
+          <h2 className="mb-4 font-bold border-t-2 pt-2 border-gray-500 md:text-lg text-sm ">Tools</h2>
+
           <div className="space-y-2">
-            <button
+            <Button
               onClick={() => handleSetTool("brush")}
               className={buttonClass(tool === "brush")}
             >
+              <FaPaintBrush size={10} className="mr-2" />
               Brush
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => handleSetTool("polygon")}
               className={buttonClass(tool === "polygon")}
             >
+              <FaDrawPolygon className="mr-2" />
               Polygon
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => handleSetTool("eraser")}
               className={buttonClass(tool === "eraser")}
             >
+              <FaEraser className="mr-2" />
               Eraser
-            </button>
-            <button
-              onClick={undo}
-              className={buttonClass(false)}
-            >
+            </Button>
+            <Button onClick={undo} className={buttonClass(false)}>
+              <FaUndo className="mr-2" />
               Undo
-            </button>
+            </Button>
           </div>
 
           {(tool === "brush" || tool === "eraser") && (
@@ -219,59 +290,14 @@ export default function Home() {
               />
             </div>
           )}
-          <h2 className="mb-4 text-lg font-bold">Classes</h2>
-          <h5 className="mb-4">Select a Class </h5>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="w-full">Add a new Class</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Class</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <label htmlFor="name">Class Name</label>
-                  <Input
-                    id="name"
-                    value={newClassName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClassName(e.target.value)}
-                    placeholder="Enter class name"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <label htmlFor="color">Class Color</label>
-                  <div className="relative">
-                    <Input
-                      id="color"
-                      value={newClassColor}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClassColor(e.target.value)}
-                      placeholder="#000000"
-                    />
-                    <ColorPicker 
-                      color={newClassColor}
-                      initialColor={newClassColor || "#ff0000"}
-                      onChange={setNewClassColor}
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleAddClass}>Add Class</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <div className="mt-4">
-          <ClassPicker
-            onClassSelect={(selectedClass) => {
-              if (selectedClass) {
-                setSelectedClass(selectedClass);
-              }
-            }}
-            selectedClass={selectedClass}
-            classes={classes}
-          />
-          </div>
-          <div className="relative bottom-64 left-24">
-          </div>
+          <h2 className="mt-6 mb-4 font-bold border-t-2 pt-2 border-gray-500 md:text-lg text-sm ">Export</h2>
+          <Button
+            onClick={handleExport}
+            className={buttonClass(false)}
+          >
+            <FaDownload className="mr-2" color="black" />
+            Export COCO
+          </Button>
         </div>
         <div className="flex-1">
           <Canvas

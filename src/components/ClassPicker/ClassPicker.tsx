@@ -14,7 +14,7 @@ const CustomOption = ({ children, ...props }: Class) => {
   return (
     <components.Option {...props}>
       <div className="flex justify-between items-center">
-        <span>{props.data.name}</span>
+        <span className="w-4/5">{props.data.name}</span>
         <div
           className="h-4 w-4 rounded-full"
           style={{ backgroundColor: props.data.color }}
@@ -46,6 +46,7 @@ const ClassPicker = ({ classes, onClassSelect, selectedClass }: { classes: Class
     control: (baseStyles: CSSObjectWithLabel): CSSObjectWithLabel => ({
       ...baseStyles,
       border: '1px solid #ccc',
+      fontSize: '14px',
       padding: '0.5rem',
       borderRadius: '4px',
     }),
@@ -54,12 +55,17 @@ const ClassPicker = ({ classes, onClassSelect, selectedClass }: { classes: Class
       marginTop: '5px',
       border: '1px solid #ccc', 
       borderRadius: '4px',
+      fontSize: '14px',
+
       backgroundColor: 'white',
       maxHeight: '150px',
     }),
     option: (baseStyles: CSSObjectWithLabel): CSSObjectWithLabel => ({
       ...baseStyles,
       cursor: 'pointer',
+      whiteSpace: 'normal', 
+      wordBreak: 'break-word',
+      fontSize: '14px',
       '&:hover': {
         backgroundColor: '#f0f0f0',
       },
@@ -67,6 +73,8 @@ const ClassPicker = ({ classes, onClassSelect, selectedClass }: { classes: Class
     menuList: (baseStyles: CSSObjectWithLabel): CSSObjectWithLabel => ({
       ...baseStyles,
       maxHeight: '150px',
+      fontSize: '14px',
+
       overflowY: 'auto'
     })
   };
