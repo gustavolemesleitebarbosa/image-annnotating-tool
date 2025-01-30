@@ -1,51 +1,129 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
-import { Canvas as FabricCanvas,  FabricImage, PencilBrush } from 'fabric';
-import type { Class } from '~/Types/Class';
+import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import {
+  Canvas as FabricCanvas,
+  FabricImage,
+  type FabricObject,
+  PencilBrush,
+  util,
+} from "fabric";
+import type { Class } from "~/Types/Class";
 
 interface CanvasProps {
-  tool: 'brush' | 'polygon' | 'eraser';
+  tool: "brush" | "polygon" | "eraser";
   brushSize: number;
   imageUrl: string | null;
   selectedClass: Class | null;
 }
 
-const Canvas = ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps) => {
+type CanvasState = {
+  version: string;
+  objects: Array<Record<string, FabricObject>>;
+  background: string;
+};
+
+const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasProps, ref) => {
   const canvasRef = useRef<FabricCanvas>();
   const containerRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<CanvasState[]>([]);
+  const isRestoringState = useRef(false);
 
-  // Initialize canvas
+  const saveCanvasState = () => {
+    if (!canvasRef.current || isRestoringState.current) return;
+
+    const state = canvasRef.current.toJSON() as CanvasState;
+    historyRef.current = [...historyRef.current, state];
+
+    // Keep only last 50 states
+    if (historyRef.current.length > 50) {
+      historyRef.current = historyRef.current.slice(-50);
+    }
+    console.log('Saved state, total states:', historyRef.current.length);
+  };
+  
+
+  const clearCanvas = () => {
+    if (!canvasRef.current) return;
+    canvasRef.current.remove(...canvasRef.current.getObjects());
+  };
+
+  const undo = () => {
+    if (!canvasRef.current || historyRef.current.length <= 1) return;
+
+    isRestoringState.current = true;
+    clearCanvas();
+    
+    // Remove current state
+    historyRef.current.pop();
+    
+    // Get previous state
+    const previousState = historyRef.current[historyRef.current.length - 1];
+    
+    if (!previousState?.objects) {
+      console.log('No previous state objects found');
+      isRestoringState.current = false;
+      return;
+    }
+
+    const canvas = canvasRef.current;
+
+    // Restore objects using the imported util
+    void util.enlivenObjects(previousState.objects)
+      .then((objs) => {
+        objs.forEach((obj) => {
+          canvas.add(obj as FabricObject);
+        });
+        canvas.renderAll();
+        isRestoringState.current = false;
+      });
+  };
+  
+
+  useImperativeHandle(ref, () => ({
+    undo,
+  }));
+
   useEffect(() => {
     if (!containerRef.current) return;
-
+  
     const container = containerRef.current;
-    
-    // Initialize Fabric canvas with explicit dimensions
-    canvasRef.current = new FabricCanvas('canvas', {
+    canvasRef.current = new FabricCanvas("canvas", {
       width: container.clientWidth || 800,
       height: container.clientHeight || 600,
-      backgroundColor: '#f0f0f0',
+      backgroundColor: "#f0f0f0",
       isDrawingMode: true,
     });
-
-    // Initialize the brush
+  
     const brush = new PencilBrush(canvasRef.current);
     canvasRef.current.freeDrawingBrush = brush;
+  
+    const canvas = canvasRef.current;
+  
+    // Save state only when user finishes drawing
+    canvas.on('after:render', () => {
+      if (!isRestoringState.current) {
+        saveCanvasState();
+      }
+    });
 
-    // Cleanup
+    // Save initial state
+    saveCanvasState();
+  
     return () => {
-      void canvasRef.current?.dispose();
+      if (canvas) {
+        canvas.off('after:render');
+        void canvas.dispose();
+      }
     };
-  }, []); // Only run once on mount
+  }, []);
 
-  // Update brush color when selected class changes
   useEffect(() => {
     if (!canvasRef.current) return;
-    
+
     const brush = canvasRef.current.freeDrawingBrush;
     if (brush) {
-      brush.color = selectedClass?.color ?? '#f0f0f0';
+      brush.color = selectedClass?.color ?? "#f0f0f0";
     }
   }, [selectedClass?.color]);
 
@@ -57,7 +135,7 @@ const Canvas = ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps) => {
       try {
         // Create a new HTML Image element
         const img = new Image();
-        
+
         // Create a promise to handle image loading
         await new Promise((resolve, reject) => {
           img.onload = resolve;
@@ -67,7 +145,7 @@ const Canvas = ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps) => {
 
         // Create Fabric Image from loaded HTML Image
         const fabricImage = new FabricImage(img);
-        
+
         // Clear existing canvas
         canvasRef.current.clear();
 
@@ -92,9 +170,8 @@ const Canvas = ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps) => {
         // Add image to canvas
         canvasRef.current.add(fabricImage);
         canvasRef.current.renderAll();
-
       } catch (error) {
-        console.error('Error loading image:', error);
+        console.error("Error loading image:", error);
       }
     };
 
@@ -105,17 +182,17 @@ const Canvas = ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps) => {
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    if (tool === 'eraser') {
+    if (tool === "eraser") {
       canvasRef.current.isDrawingMode = true;
       const brush = new PencilBrush(canvasRef.current);
       brush.width = brushSize;
-      brush.color = '#f0f0f0';
+      brush.color = "#f0f0f0";
       canvasRef.current.freeDrawingBrush = brush;
-    } else if (tool === 'brush') {
+    } else if (tool === "brush") {
       canvasRef.current.isDrawingMode = true;
       const brush = new PencilBrush(canvasRef.current);
       brush.width = brushSize;
-      brush.color = selectedClass?.color ?? '#f0f0f0';
+      brush.color = selectedClass?.color ?? "#f0f0f0";
       canvasRef.current.freeDrawingBrush = brush;
     } else {
       canvasRef.current.isDrawingMode = false;
@@ -123,14 +200,16 @@ const Canvas = ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps) => {
   }, [tool, brushSize, selectedClass?.color]);
 
   return (
-    <div 
-      ref={containerRef} 
-      className="w-full h-full relative min-h-[600px]"
-      style={{ touchAction: 'none' }}
+    <div
+      ref={containerRef}
+      className="relative h-full min-h-[600px] w-full"
+      style={{ touchAction: "none" }}
     >
       <canvas id="canvas" />
     </div>
   );
-};
+});
+
+Canvas.displayName = "Canvas";
 
 export default Canvas;

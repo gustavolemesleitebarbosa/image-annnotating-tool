@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import dynamic from "next/dynamic";
 import ColorPicker from "~/components/ColorPicker/ColorPicker";
 import { type Class } from "~/Types/Class";
 import ClassPicker from "~/components/ClassPicker/ClassPicker";
@@ -9,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import toast, { Toaster } from 'react-hot-toast';
+import Canvas from "~/components/Canvas/Canvas";
 
 const initialClasses: Class[] = [
   {
@@ -48,12 +48,6 @@ const initialClasses: Class[] = [
   },
 ];
 
-// We'll need to use dynamic import for the Canvas component because Fabric.js
-// requires window object which isn't available during SSR
-const Canvas = dynamic(() => import("../components/Canvas/Canvas"), {
-  ssr: false,
-});
-
 const getInitialClasses = (): Class[] => {
   if (typeof window === 'undefined') return initialClasses;
   
@@ -81,6 +75,7 @@ export default function Home() {
   const [classes, setClasses] = useState<Class[]>(() => getInitialClasses());
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<{ undo: () => void }>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -136,6 +131,12 @@ export default function Home() {
     toast.success(`Class "${newClassName}" added successfully!`);
   };
 
+  const undo = () => {
+    if (canvasRef.current) {
+      canvasRef.current.undo();
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen flex-col">
       <Toaster position="top-right" />
@@ -187,6 +188,12 @@ export default function Home() {
             >
               Eraser
             </button>
+            <button
+              onClick={undo}
+              className={buttonClass(false)}
+            >
+              Undo
+            </button>
           </div>
 
           {(tool === "brush" || tool === "eraser") && (
@@ -206,18 +213,9 @@ export default function Home() {
           )}
           <h2 className="mb-4 text-lg font-bold">Classes</h2>
           <h5 className="mb-4">Select a Class </h5>
-          <ClassPicker
-            onClassSelect={(selectedClass) => {
-              if (selectedClass) {
-                setSelectedClass(selectedClass);
-              }
-            }}
-            selectedClass={selectedClass}
-            classes={classes}
-          />
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="mt-6 w-full">Add a new Class</Button>
+              <Button className="w-full">Add a new Class</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -253,11 +251,28 @@ export default function Home() {
               </div>
             </DialogContent>
           </Dialog>
+          <div className="mt-4">
+          <ClassPicker
+            onClassSelect={(selectedClass) => {
+              if (selectedClass) {
+                setSelectedClass(selectedClass);
+              }
+            }}
+            selectedClass={selectedClass}
+            classes={classes}
+          />
+          </div>
           <div className="relative bottom-64 left-24">
           </div>
         </div>
         <div className="flex-1">
-          <Canvas selectedClass={selectedClass} tool={tool} brushSize={brushSize} imageUrl={imageUrl} />
+          <Canvas
+            ref={canvasRef}
+            tool={tool}
+            brushSize={brushSize}
+            imageUrl={imageUrl}
+            selectedClass={selectedClass}
+          />
         </div>
       </div>
     </div>
