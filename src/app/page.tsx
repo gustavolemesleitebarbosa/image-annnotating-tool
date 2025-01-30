@@ -67,7 +67,7 @@ const getInitialClasses = (): Class[] => {
 };
 
 export default function Home() {
-  const [tool, setTool] = useState<"brush" | "polygon" | "eraser">("brush");
+  const [tool, setTool] = useState<"brush" | "polygon" | "eraser"| null>(null);
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [newClassName, setNewClassName] = useState<string>("");
@@ -137,17 +137,25 @@ export default function Home() {
     }
   };
 
+  const handleSetTool = (tool: "brush" | "polygon" | "eraser") => {
+    if ((tool === "polygon" || tool === "brush") && !selectedClass) {
+      toast.error(`Please select a class before using the ${tool} tool`);
+      return;
+    }
+    setTool(tool);
+  }
+
   return (
     <div className="flex h-screen w-screen flex-col">
       <Toaster position="top-right" />
       {/* Header */}
       <div className="flex w-full justify-end border-b bg-white p-4 shadow-sm">
-        <button
+        <Button
           onClick={handleExport}
           className="rounded bg-gray-200 px-4 py-2 hover:bg-[#f5f5dc]"
         >
           Export COCO
-        </button>
+        </Button>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -171,19 +179,19 @@ export default function Home() {
           </div>
           <div className="space-y-2">
             <button
-              onClick={() => setTool("brush")}
+              onClick={() => handleSetTool("brush")}
               className={buttonClass(tool === "brush")}
             >
               Brush
             </button>
             <button
-              onClick={() => setTool("polygon")}
+              onClick={() => handleSetTool("polygon")}
               className={buttonClass(tool === "polygon")}
             >
               Polygon
             </button>
             <button
-              onClick={() => setTool("eraser")}
+              onClick={() => handleSetTool("eraser")}
               className={buttonClass(tool === "eraser")}
             >
               Eraser

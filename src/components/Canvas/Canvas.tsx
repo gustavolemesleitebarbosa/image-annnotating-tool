@@ -98,7 +98,7 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
       width: container.clientWidth || 800,
       height: container.clientHeight || 600,
       backgroundColor: hexToRgba("#f0f0f0",  0.35),
-      isDrawingMode: true,
+      isDrawingMode: false,
     });
   
     const brush = new PencilBrush(canvasRef.current);
@@ -187,6 +187,7 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
   // Handle tool changes
   useEffect(() => {
     if (!canvasRef.current) return;
+    if(!tool){canvasRef.current.isDrawingMode = false; return}
     // Remove event listeners for polygon tool
     if(tool !== "polygon"){
       canvasRef.current.off("mouse:down");
@@ -339,7 +340,7 @@ const Canvas = forwardRef(({ tool, brushSize, imageUrl, selectedClass }: CanvasP
         canvas.off("mouse:down", handleMouseDown);
       };
     }
-  }, [tool, selectedClass]);
+  }, [tool, selectedClass, brushSize]);
 
   return (
     <div
