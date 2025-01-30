@@ -30,6 +30,7 @@ type CanvasState = {
 const Canvas = forwardRef(
   ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps, ref) => {
     const mainCanvasRef = useRef<FabricCanvas>();
+    const maskCanvasRef = useRef<FabricCanvas>();
     const containerRef = useRef<HTMLDivElement>(null);
     const historyRef = useRef<CanvasState[]>([]);
     const currentPolygonPoints = useRef<Circle[]>([]);
@@ -93,6 +94,13 @@ const Canvas = forwardRef(
 
       const container = containerRef.current;
       mainCanvasRef.current = new FabricCanvas("mainCanvas", {
+        width: container.clientWidth || 800,
+        height: container.clientHeight || 600,
+        backgroundColor: hexToRgba("#f0f0f0", 0.35),
+        isDrawingMode: false,
+      });
+
+      maskCanvasRef.current = new FabricCanvas("maskCanvas", {
         width: container.clientWidth || 800,
         height: container.clientHeight || 600,
         backgroundColor: hexToRgba("#f0f0f0", 0.35),
@@ -352,6 +360,7 @@ const Canvas = forwardRef(
         style={{ touchAction: "none" }}
       >
         <canvas id="mainCanvas" />
+        <canvas id="maskCanvas" />
       </div>
     );
   },
