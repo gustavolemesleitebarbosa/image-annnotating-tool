@@ -47,7 +47,7 @@ const ClassPicker = ({ classes, onClassSelect, selectedClass }: { classes: Class
       ...baseStyles,
       border: '1px solid #ccc',
       fontSize: '14px',
-      padding: '0.5rem',
+      padding: '0.3rem',
       borderRadius: '4px',
     }),
     menu: (baseStyles: CSSObjectWithLabel): CSSObjectWithLabel => ({

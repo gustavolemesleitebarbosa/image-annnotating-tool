@@ -89,8 +89,10 @@ export function buildCOCOData(
   annotationsData: COCOAnnotation[],
   classes: Class[],
   categoryMap: Record<number, number>,
-  imageId: number|null
 ) {
+
+  const licenseID = generateRandomId();
+  const imageId = generateRandomId();
   const info = {
     description: "Sample dataset",
     url: "https://your-url.com",
@@ -103,14 +105,14 @@ export function buildCOCOData(
   const licenses = [
     {
       url: "https://creativecommons.org/licenses/by/4.0/",
-      id: generateRandomId(),
+      id: licenseID,
       name: "Creative Commons Attribution 4.0 International",
     },
   ];
 
   const images = [
     {
-      license: generateRandomId(),
+      license: licenseID,
       file_name: "image.jpg",
       coco_url: "https://example.com/coco-url",
       height: canvas.getHeight(),

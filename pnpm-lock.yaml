@@ -39,6 +39,7 @@ specifiers:
   tailwindcss: ^3.4.3
   tailwindcss-animate: ^1.0.7
   typescript: ^5.5.3
+  uuid: ^11.0.5
   uuidv4: ^6.2.13
   zod: ^3.23.3
 
@@ -66,6 +67,7 @@ dependencies:
   superjson: 2.2.2
   tailwind-merge: 2.6.0
   tailwindcss-animate: 1.0.7_tailwindcss@3.4.17
+  uuid: 11.0.5
   uuidv4: 6.2.13
   zod: 3.24.1
 
@@ -4706,6 +4708,11 @@ packages:
 
   /util-deprecate/1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  /uuid/11.0.5:
+    resolution: {integrity: sha512-508e6IcKLrhxKdBbcA2b4KQZlLVp2+J5UwQ6F7Drckkc5N9ZJwFa4TgWtsww9UG8fGHbm6gbV19TdM5pQ4GaIA==}
+    hasBin: true
+    dev: false
 
   /uuid/8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}

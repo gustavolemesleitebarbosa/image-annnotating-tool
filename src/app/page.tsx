@@ -83,7 +83,7 @@ const getInitialClasses = (): Class[] => {
 };
 
 export default function Home() {
-  const [tool, setTool] = useState<"brush" | "polygon" | "eraser" | null>(null);
+  const [tool, setTool] = useState<"6rush" | "polygon" | "eraser" | null>(null);
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [newClassName, setNewClassName] = useState<string>("");
@@ -173,7 +173,7 @@ export default function Home() {
   };
 
   const buttonClass = (isActive: boolean) => `
-    w-full flex items-center justify-center rounded text-xs md:text-sm
+    w-full flex items-center justify-center rounded text-xs md:text-sm h-8 md:h-12
     ${isActive ? "bg-black text-white" : "bg-gray-300 text-black"} 
     hover:bg-[#a2c2dc]
   `;
@@ -185,7 +185,7 @@ export default function Home() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex w-64 flex-col bg-white p-4 shadow-2xl">
-          <h2 className="mb-4 text-sm font-bold md:text-lg">Classes</h2>
+          <h2 className="mb-4 text-xs text-sm font-bold md:text-lg">Classes</h2>
           <Dialog>
             <DialogTrigger asChild>
               <Button className={buttonClass(false)}>Add a new Class</Button>
@@ -229,7 +229,7 @@ export default function Home() {
             </DialogContent>
           </Dialog>
           <div className="mt-4">
-            <h5 className="mb-4 text-sm md:text-base">Select a Class </h5>
+            <h5 className="mb-4 text-xs md:text-base">Select a Class </h5>
 
             <ClassPicker
               onClassSelect={(selectedClass) => {
@@ -250,7 +250,7 @@ export default function Home() {
               accept="image/*"
               className="hidden"
             />
-            <h2 className="mb-5 mt-6 border-t-2 border-gray-500 pt-2 text-sm font-bold md:text-lg">
+            <h2 className="mb-5 mt-6 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
               Upload
             </h2>
 
@@ -262,7 +262,7 @@ export default function Home() {
               Upload Image
             </Button>
           </div>
-          <h2 className="mb-4 border-t-2 border-gray-500 pt-2 text-sm font-bold md:text-lg">
+          <h2 className="mb-4 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
             Tools
           </h2>
 
@@ -296,7 +296,7 @@ export default function Home() {
 
           {(tool === "brush" || tool === "eraser") && (
             <div className="mt-4">
-              <label className="mb-2 block text-sm font-medium">
+              <label className="mb-2 block md:text-sm  text-xs font-medium">
                 {tool === "brush" ? "Brush" : "Eraser"} Size: {brushSize}px
               </label>
               <input
@@ -309,7 +309,7 @@ export default function Home() {
               />
             </div>
           )}
-          <h2 className="mb-4 mt-6 border-t-2 border-gray-500 pt-2 text-sm font-bold md:text-lg">
+          <h2 className="mb-4 mt-6 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
             Export
           </h2>
           <Button onClick={handleExport} className={buttonClass(false)}>

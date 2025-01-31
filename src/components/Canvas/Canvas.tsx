@@ -248,7 +248,7 @@ const Canvas = forwardRef(
         .filter((anno): anno is COCOAnnotation => anno !== null);
 
       // Build the final COCO data object
-      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap, imageId);
+      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap);
 
       // Validate COCO data
       const validation = validateCOCO(cocoData);
