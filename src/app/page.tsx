@@ -24,8 +24,10 @@ import {
   FaEraser,
   FaUndo,
   FaDownload,
+  FaBars,
 } from "react-icons/fa";
 
+// Initial classes
 const initialClasses: Class[] = [
   {
     id: generateRandomId(),
@@ -83,7 +85,10 @@ const getInitialClasses = (): Class[] => {
 };
 
 export default function Home() {
-  const [tool, setTool] = useState<"6rush" | "polygon" | "eraser" | null>(null);
+  // State for collapsible sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const [tool, setTool] = useState<"brush" | "polygon" | "eraser" | null>(null);
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [newClassName, setNewClassName] = useState<string>("");
@@ -127,9 +132,7 @@ export default function Home() {
   };
 
   const handleAddClass = () => {
-    const previousTakenColors = classes.map(
-      (classElement) => classElement.color,
-    );
+    const previousTakenColors = classes.map((classElement) => classElement.color);
 
     if (!newClassName || !newClassColor) {
       toast.error("Please fill in both name and color");
@@ -154,7 +157,7 @@ export default function Home() {
     setClasses(updatedClasses);
     localStorage.setItem("classes", JSON.stringify(updatedClasses));
     setNewClassName("");
-    setNewClassColor("#ff0000"); // reset to default color
+    setNewClassColor("#ff0000");
     toast.success(`Class "${newClassName}" added successfully!`);
   };
 
@@ -164,12 +167,12 @@ export default function Home() {
     }
   };
 
-  const handleSetTool = (tool: "brush" | "polygon" | "eraser") => {
-    if ((tool === "polygon" || tool === "brush") && !selectedClass) {
-      toast.error(`Please select a class before using the ${tool} tool`);
-      return; // Prevents `setTool(tool)` from running
+  const handleSetTool = (toolType: "brush" | "polygon" | "eraser") => {
+    if ((toolType === "polygon" || toolType === "brush") && !selectedClass) {
+      toast.error(`Please select a class before using the ${toolType} tool`);
+      return;
     }
-    setTool(tool);
+    setTool(toolType);
   };
 
   const buttonClass = (isActive: boolean) => `
@@ -179,12 +182,37 @@ export default function Home() {
   `;
 
   return (
-    <div className="flex h-screen w-screen flex-col">
+    <div className="flex h-screen w-screen flex-col relative">
       <Toaster position="top-right" />
-      {/* Header */}
+
+      {/* Toggle button (visible on small/medium screens) */}
+      {!isSidebarOpen && (
+        <button
+          className="md:hidden absolute top-2 left-2 z-50 bg-gray-800 text-white p-2 rounded"
+          onClick={() => setIsSidebarOpen(true)}
+        >
+          <FaBars />
+        </button>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex w-64 flex-col bg-white p-4 shadow-2xl">
+        {/* Sidebar container */}
+        <div
+          className={`
+            flex flex-col bg-white p-4 shadow-2xl
+            md:relative absolute top-0 h-full z-40
+            transition-transform duration-300
+            ${isSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 md:translate-x-0 md:w-64"}
+          `}
+        >
+          {/* Hide the sidebar close button on larger screens */}
+          <button
+            className="md:hidden mb-2 self-end bg-gray-300 hover:bg-gray-400 text-black rounded px-2 py-1"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            Close
+          </button>
+
           <h2 className="mb-4 text-xs text-sm font-bold md:text-lg">Classes</h2>
           <Dialog>
             <DialogTrigger asChild>
@@ -228,13 +256,13 @@ export default function Home() {
               </div>
             </DialogContent>
           </Dialog>
+
           <div className="mt-4">
             <h5 className="mb-4 text-xs md:text-base">Select a Class </h5>
-
             <ClassPicker
-              onClassSelect={(selectedClass) => {
-                if (selectedClass) {
-                  setSelectedClass(selectedClass);
+              onClassSelect={(selected) => {
+                if (selected) {
+                  setSelectedClass(selected);
                 }
               }}
               selectedClass={selectedClass}
@@ -253,7 +281,6 @@ export default function Home() {
             <h2 className="mb-5 mt-6 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
               Upload
             </h2>
-
             <Button
               onClick={() => fileInputRef.current?.click()}
               className={buttonClass(false)}
@@ -262,10 +289,10 @@ export default function Home() {
               Upload Image
             </Button>
           </div>
+
           <h2 className="mb-4 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
             Tools
           </h2>
-
           <div className="space-y-2">
             <Button
               onClick={() => handleSetTool("brush")}
@@ -287,7 +314,7 @@ export default function Home() {
             </Button>
             <Button
               onClick={() => canvasRef.current?.toggleAnnotationsView()}
-              className={buttonClass(tool === "eraser")}
+              className={buttonClass(false)}
             >
               <FaEraser className="mr-2" />
               Toggle Annotations View
@@ -296,7 +323,7 @@ export default function Home() {
 
           {(tool === "brush" || tool === "eraser") && (
             <div className="mt-4">
-              <label className="mb-2 block md:text-sm  text-xs font-medium">
+              <label className="mb-2 block md:text-sm text-xs font-medium">
                 {tool === "brush" ? "Brush" : "Eraser"} Size: {brushSize}px
               </label>
               <input
@@ -309,6 +336,7 @@ export default function Home() {
               />
             </div>
           )}
+
           <h2 className="mb-4 mt-6 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
             Export
           </h2>
@@ -317,14 +345,25 @@ export default function Home() {
             Export COCO
           </Button>
         </div>
-        <div className="flex-1 relative">
+
+        {/* Main canvas container with safe-area padding */}
+        <div
+          className="relative flex-1"
+          style={{
+            // Add safe-area padding at the bottom for iPhone
+            paddingBottom:
+              "env(safe-area-inset-bottom, 0px)", // Modern iOS devices
+            WebkitPaddingBottom:
+              "env(safe-area-inset-bottom, 0px)", // Safari-specific prefix
+          }}
+        >
           <Canvas
-            classes={classes}
             ref={canvasRef}
             tool={tool}
             brushSize={brushSize}
             imageUrl={imageUrl}
             selectedClass={selectedClass}
+            classes={classes}
           />
         </div>
       </div>

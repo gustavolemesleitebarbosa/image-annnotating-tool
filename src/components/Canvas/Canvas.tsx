@@ -57,7 +57,7 @@ const Canvas = forwardRef(
     const isRestoringState = useRef(false);
     const CLOSE_THRESHOLD = 10; // Threshold distance to close polygon
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
-    const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(false);
+    const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(true);
     const [showAnnotations, setShowAnnotations] = useState(false);
     const [imageId, setImageId] = useState<number|null>(null);
 
@@ -646,7 +646,7 @@ const Canvas = forwardRef(
           <div className={annotationsClass()}>
             {annotations.map((annotation, index) => (
               <Button
-                className="m-2 border border-slate-300 bg-slate-50 text-black hover:bg-slate-400"
+                className="m-2 border z-10 border-slate-300 bg-slate-50 text-black hover:bg-slate-400"
                 key={index}
                 onMouseEnter={() => {
                   const canvas = mainCanvasRef.current;
