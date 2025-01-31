@@ -20,8 +20,10 @@ import {
 } from "fabric";
 import type { Class } from "~/Types/Class";
 import { Button } from "~/components/ui/button";
-import { FaTrash, X, safa } from "react-icons/fa";
+import { FaTrash } from "react-icons/fa";
 import { hexToRgba } from "~/utils/colors";
+import { validateCOCO } from "~/utils/validateCOCO";
+import toast from "react-hot-toast";
 
 interface CanvasProps {
   tool: "brush" | "polygon" | "eraser";
@@ -45,6 +47,7 @@ type Annotation = {
 
 interface COCOAnnotation {
   id: number;
+  image_id: number;
   category_id: number;
   segmentation: number[][];
   area: number;
@@ -65,6 +68,7 @@ const Canvas = forwardRef(
     const currentPolygonLines = useRef<Line[]>([]);
     const isRestoringState = useRef(false);
     const CLOSE_THRESHOLD = 10; // Threshold distance to close polygon
+
 
     // References to event handlers so they can be removed
     const handleMouseDownRef = useRef<(options: fabric.IEvent) => void>();
@@ -154,6 +158,7 @@ const Canvas = forwardRef(
 
             return {
               id: index + 1,
+              image_id: 1, 
               category_id: annotation.class?.id ?? 0,
               segmentation: [segmentation],
               area: area,
@@ -253,6 +258,7 @@ const Canvas = forwardRef(
               id: index + 1,
               category_id: annotation.class?.id ?? 0,
               segmentation: [segmentation],
+              image_id: 1,
               area: area,
               bbox: [
                 boundingRect.left || 0,
@@ -292,11 +298,11 @@ const Canvas = forwardRef(
         {
           license: 1,
           file_name: "image.jpg",
-          coco_url: "",
+          coco_url: "https://cocodataset.org",
           height: canvas.getHeight(),
           width: canvas.getWidth(),
           date_captured: new Date().toISOString(),
-          flickr_url: "",
+          flickr_url: "https://www.flickr.com/photos/tags/flicker/",
           id: 1,
         },
       ];
@@ -317,6 +323,15 @@ const Canvas = forwardRef(
         categories,
       };
 
+      const validation = validateCOCO(cocoData)
+      if(!validation.success){
+        toast.error(validation.message);
+        console.log(validation.details);
+         return;
+      }
+      else{
+        toast.success("COCO data is valid");
+      }
       // Convert to JSON and download
       const dataStr = JSON.stringify(cocoData, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
