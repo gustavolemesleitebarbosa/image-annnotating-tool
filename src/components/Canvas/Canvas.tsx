@@ -133,7 +133,7 @@ const Canvas = forwardRef(
 
       objectsToRemove.forEach((obj) => canvas.remove(obj));
 
-      // Proceed with exporting annotations
+      // Build up the list of annotations from your Fabric objects
       const annotationsData: COCOAnnotation[] = annotations
         .map((annotation, index) => {
           // For polygons
@@ -142,16 +142,21 @@ const Canvas = forwardRef(
             const points = polygon.points ?? [];
 
             // Flatten points into [x1, y1, x2, y2, ...]
-            const segmentation = points.flatMap((point) => [
-              point.x,
-              point.y,
-            ]);
+            const segmentation = points.flatMap((point) => [point.x, point.y]);
+
+            // Calculate area using the Shoelace formula
+            const area = Math.abs(
+              points.reduce((sum, point, i, arr) => {
+                const nextPoint = arr[(i + 1) % arr.length];
+                return sum + (point.x * nextPoint.y - nextPoint.x * point.y);
+              }, 0) / 2
+            );
 
             return {
               id: index + 1,
               category_id: annotation.class?.id ?? 0,
               segmentation: [segmentation],
-              area: polygon.area || 0,
+              area: area,
               bbox: [
                 polygon.left || 0,
                 polygon.top || 0,
@@ -263,23 +268,56 @@ const Canvas = forwardRef(
         })
         .filter((annotation): annotation is COCOAnnotation => annotation !== null);
 
-      const cocoData = {
-        annotations: annotationsData,
-        categories: classes.map((cls) => ({
-          id: cls.id,
-          name: cls.name,
-          supercategory: "none",
-        })),
-        images: [
-          {
-            id: 1,
-            width: canvas.getWidth(),
-            height: canvas.getHeight(),
-            file_name: "image.jpg",
-          },
-        ],
+      // Example "info" and "licenses"
+      // Adjust these fields to match your dataset
+      const info = {
+        description: "Sample dataset description",
+        url: "https://your-website.com",
+        version: "1.0",
+        year: new Date().getFullYear(),
+        contributor: "Gustavo Barbosa",
+        date_created: new Date().toISOString(),
       };
 
+      const licenses = [
+        {
+          url: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          id: 1,
+          name: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International",
+        },
+      ];
+
+      // Example single image entry
+      const images = [
+        {
+          license: 1,
+          file_name: "image.jpg",
+          coco_url: "",
+          height: canvas.getHeight(),
+          width: canvas.getWidth(),
+          date_captured: new Date().toISOString(),
+          flickr_url: "",
+          id: 1,
+        },
+      ];
+
+      // Build category objects from the classes array
+      const categories = classes.map((cls) => ({
+        supercategory: "none",
+        id: cls.id,
+        name: cls.name,
+      }));
+
+      // Final COCO data structure
+      const cocoData = {
+        info,
+        licenses,
+        images,
+        annotations: annotationsData,
+        categories,
+      };
+
+      // Convert to JSON and download
       const dataStr = JSON.stringify(cocoData, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
