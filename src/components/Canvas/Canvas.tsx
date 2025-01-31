@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import {
+  useEffect,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+  useState,
+} from "react";
 import {
   Canvas as FabricCanvas,
   FabricImage,
@@ -12,6 +18,8 @@ import {
   util,
 } from "fabric";
 import type { Class } from "~/Types/Class";
+import { Button } from "~/components/ui/button";
+import { FaTrash, X, safa } from "react-icons/fa";
 import { hexToRgba } from "~/utils/colors";
 
 interface CanvasProps {
@@ -29,7 +37,7 @@ type CanvasState = {
 };
 
 type Annotation = {
-  type: 'polygon' | 'path';
+  type: "polygon" | "path";
   class: Class | null;
 };
 
@@ -38,7 +46,9 @@ const Canvas = forwardRef(
     const mainCanvasRef = useRef<FabricCanvas>();
     const maskCanvasRef = useRef<FabricCanvas>();
     const containerRef = useRef<HTMLDivElement>(null);
-    const annotationsDataRef = useRef<Annotation[]>([]);
+    const [annotations, setAnnotations] = useState<Annotation[]>([]);
+    const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(false);
+    const [showAnnotations, setShowAnnotations] = useState(false);
     const historyRef = useRef<CanvasState[]>([]);
     const currentPolygonPoints = useRef<Circle[]>([]);
     const isRestoringState = useRef(false);
@@ -97,7 +107,7 @@ const Canvas = forwardRef(
       const cocoDataset = {
         images: [],
         annotations: [],
-        categories: []
+        categories: [],
       };
       // Assuming a single image
       const imageId = 1;
@@ -122,7 +132,7 @@ const Canvas = forwardRef(
       let annotationId = 1;
       canvas?.getObjects().forEach((obj, index) => {
         // Retrieve the class from the object's data
-        const objClass = annotationsDataRef.current[index]?.class as Class | undefined;
+        const objClass = annotations[index] as Class | undefined;
 
         if (!objClass) return; // Skip if class is not assigned
 
@@ -135,11 +145,10 @@ const Canvas = forwardRef(
           bbox: [],
           iscrowd: 0,
         };
-        console.log('scategory_id', objClass);
+        console.log("scategory_id", annotationcategory_id);
 
-
-        if (annotationsDataRef.current[index]?.type  === "polygon" )  {
-          console.log('polygon');
+        if (annotations[index]?.type === "polygon") {
+          console.log("polygon");
           const polygon = obj as fabric.Polygon;
 
           // Extract segmentation points
@@ -166,8 +175,8 @@ const Canvas = forwardRef(
           annotation.bbox = bbox;
           annotation.class = objClass;
           annotation.area = bbox[2] * bbox[3];
-        } else if (annotationsDataRef.current[index]?.type  === "path") {
-          console.log('path');
+        } else if (annotations[index]?.type === "path") {
+          console.log("path");
           const path = obj as fabric.Path;
 
           // For brush strokes, we can approximate using the bounding box
@@ -186,9 +195,14 @@ const Canvas = forwardRef(
       console.log(jsonStr);
     };
 
+    const toggleAnnotationsView = () => {
+      setShowAnnotations( (prevState) =>!prevState);
+    };
+
     useImperativeHandle(ref, () => ({
       undo,
       exportToCOCO,
+      toggleAnnotationsView
     }));
 
     useEffect(() => {
@@ -310,13 +324,15 @@ const Canvas = forwardRef(
         brush.color = hexToRgba("#f0f0f0", 0.35);
         mainCanvasRef.current.freeDrawingBrush = brush;
       } else if (tool === "brush") {
-
         const handleMouseDown = () => {
-          annotationsDataRef.current.push({
-            type: 'path',
-            class: selectedClass,
-          });
-        }
+          setAnnotations((prevAnnotations) => [
+            ...prevAnnotations,
+            {
+              type: "path",
+              class: selectedClass,
+            },
+          ]);
+        };
 
         const canvas = mainCanvasRef.current;
         canvas.isDrawingMode = true;
@@ -325,7 +341,6 @@ const Canvas = forwardRef(
         brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
         mainCanvasRef.current.freeDrawingBrush = brush;
         canvas.on("mouse:down", handleMouseDown);
-
       } else if (tool === "polygon") {
         mainCanvasRef.current.isDrawingMode = false;
         const canvas = mainCanvasRef.current;
@@ -405,7 +420,6 @@ const Canvas = forwardRef(
                 stroke: hexToRgba(selectedClass?.color ?? "#000000", 0.8),
                 strokeWidth: 2,
                 selectable: false,
-                
               });
 
               canvas.add(polygon);
@@ -416,10 +430,14 @@ const Canvas = forwardRef(
               currentPolygonPoints.current = [];
 
               canvas.renderAll();
-              annotationsDataRef.current.push({
-                type: 'polygon',
-                class: selectedClass,
-              });
+
+              setAnnotations((prevAnnotations) => [
+                ...prevAnnotations,
+                {
+                  type: "polygon",
+                  class: selectedClass,
+                },
+              ]);
               return;
             }
           }
@@ -469,15 +487,71 @@ const Canvas = forwardRef(
       }
     }, [tool, selectedClass, brushSize]);
 
+    const removeAnnotation = (index: number) => {
+      setAnnotations((prevAnnotations) =>
+        prevAnnotations.filter((_, i) => i !== index),
+      );
+
+      const canvas = mainCanvasRef.current;
+      if (!canvas) return;
+
+      const objects = canvas.getObjects();
+
+      if (index >= 0 && index < objects.length) {
+        canvas.remove(objects[index]);
+        canvas.renderAll(); // Ensure the canvas updates visually
+      }
+    };
+
+   const annotationsClass = () => `
+    absolute w-full  ${showAnnotationsOnTop ? " top-0 left-0 " : "bottom-0 left-0 "} flex h-14 w-full flex-wrap overflow-auto shadow-lg bg-slate-200 border-black px-4
+  `;
+
     return (
-      <div
-        ref={containerRef}
-        className="relative h-full min-h-[600px] w-full"
-        style={{ touchAction: "none" }}
-      >
-        <canvas id="mainCanvas" />
-        <canvas id="maskCanvas" />
-      </div>
+      <>
+        <div
+          ref={containerRef}
+          className="relative h-full min-h-[600px] w-full"
+          style={{ touchAction: "none" }}
+        >
+          <canvas id="mainCanvas" />
+          <canvas id="maskCanvas" />
+        </div>
+        {showAnnotations && (
+        <div className= {annotationsClass()}>
+          {annotations.map((annotation, index) => (
+            <Button
+              className="m-2"
+              key={index}
+              onMouseEnter={() => {
+                const canvas = mainCanvasRef.current;
+                if (!canvas) return;
+
+                const objects = canvas.getObjects();
+                if (index >= 0 && index < objects.length) {
+                  objects[index].set("opacity", 0.6);
+                  canvas.renderAll();
+                }
+              }}
+              onMouseLeave={() => {
+                const canvas = mainCanvasRef.current;
+                if (!canvas) return;
+
+                const objects = canvas.getObjects();
+                if (index >= 0 && index < objects.length) {
+                  objects[index].set("opacity", 1);
+                  canvas.renderAll();
+                }
+              }}
+              onClick={() => removeAnnotation(index)}
+            >
+              {annotation.class?.name} <FaTrash />
+            </Button>
+          ))}
+          <Button className="m-2 bg-blue-300 hover:bg-blue-300 " onClick={() => setshowAnnotationsOnTop(!showAnnotationsOnTop)}> {showAnnotationsOnTop ? "Bottom" : "Top"}</Button>
+        </div>
+        )}
+      </>
     );
   },
 );

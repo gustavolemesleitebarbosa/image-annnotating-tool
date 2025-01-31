@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ColorPicker from "~/components/ColorPicker/ColorPicker";
 import { type Class } from "~/Types/Class";
 import ClassPicker from "~/components/ClassPicker/ClassPicker";
@@ -85,11 +85,24 @@ export default function Home() {
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [newClassName, setNewClassName] = useState<string>("");
-  const [newClassColor, setNewClassColor] = useState<string>("");
+  const [newClassColor, setNewClassColor] = useState<string>("#ff0000");
   const [classes, setClasses] = useState<Class[]>(() => getInitialClasses());
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<{ undo: () => void, exportToCOCO: () => void }>(null);
+  const canvasRef = useRef<{
+    undo: () => void;
+    exportToCOCO: () => void;
+    toggleAnnotationsView: () => void;
+  }>(null);
+
+  // Sync with localStorage when classes change
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setClasses(getInitialClasses());
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -111,12 +124,6 @@ export default function Home() {
     }
   };
 
-  const buttonClass = (isActive: boolean) => `
-    w-full flex items-center justify-center rounded text-xs md:text-sm
-    ${isActive ? "bg-black text-white" : "bg-gray-300 text-black"} 
-    hover:bg-[#a2c2dc]
-  `;
-
   const handleAddClass = () => {
     const previousTakenColors = classes.map(
       (classElement) => classElement.color,
@@ -130,14 +137,13 @@ export default function Home() {
       toast.error("Color already taken");
       return;
     }
-
-    if (!newClassName || !newClassColor) {
-      toast.error("Please fill in both name and color");
+    if (classes.some((c) => c.name.toLowerCase() === newClassName.toLowerCase())) {
+      toast.error("Class name already exists");
       return;
     }
 
     const newClass: Class = {
-      id: Math.max(...classes.map((c) => c.id)) + 1,
+      id: classes.length > 0 ? Math.max(...classes.map((c) => c.id)) + 1 : 1,
       name: newClassName,
       color: newClassColor,
     };
@@ -146,7 +152,7 @@ export default function Home() {
     setClasses(updatedClasses);
     localStorage.setItem("classes", JSON.stringify(updatedClasses));
     setNewClassName("");
-    setNewClassColor("");
+    setNewClassColor("#ff0000"); // reset to default color
     toast.success(`Class "${newClassName}" added successfully!`);
   };
 
@@ -159,10 +165,16 @@ export default function Home() {
   const handleSetTool = (tool: "brush" | "polygon" | "eraser") => {
     if ((tool === "polygon" || tool === "brush") && !selectedClass) {
       toast.error(`Please select a class before using the ${tool} tool`);
-      return;
+      return; // Prevents `setTool(tool)` from running
     }
     setTool(tool);
   };
+
+  const buttonClass = (isActive: boolean) => `
+    w-full flex items-center justify-center rounded text-xs md:text-sm
+    ${isActive ? "bg-black text-white" : "bg-gray-300 text-black"} 
+    hover:bg-[#a2c2dc]
+  `;
 
   return (
     <div className="flex h-screen w-screen flex-col">
@@ -171,12 +183,10 @@ export default function Home() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex w-64 flex-col bg-white p-4 shadow-2xl">
-          <h2 className="mb-4 md:text-lg text-sm font-bold">Classes</h2>
+          <h2 className="mb-4 text-sm font-bold md:text-lg">Classes</h2>
           <Dialog>
             <DialogTrigger asChild>
-              <Button  className={buttonClass(false)}>
-                Add a new Class
-              </Button>
+              <Button className={buttonClass(false)}>Add a new Class</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -238,7 +248,9 @@ export default function Home() {
               accept="image/*"
               className="hidden"
             />
-            <h2 className="mb-5  font-bold mt-6 border-t-2 pt-2 border-gray-500 md:text-lg text-sm ">Upload</h2>
+            <h2 className="mb-5 mt-6 border-t-2 border-gray-500 pt-2 text-sm font-bold md:text-lg">
+              Upload
+            </h2>
 
             <Button
               onClick={() => fileInputRef.current?.click()}
@@ -248,7 +260,9 @@ export default function Home() {
               Upload Image
             </Button>
           </div>
-          <h2 className="mb-4 font-bold border-t-2 pt-2 border-gray-500 md:text-lg text-sm ">Tools</h2>
+          <h2 className="mb-4 border-t-2 border-gray-500 pt-2 text-sm font-bold md:text-lg">
+            Tools
+          </h2>
 
           <div className="space-y-2">
             <Button
@@ -265,16 +279,16 @@ export default function Home() {
               <FaDrawPolygon className="mr-2" />
               Polygon
             </Button>
-            <Button
-              onClick={() => handleSetTool("eraser")}
-              className={buttonClass(tool === "eraser")}
-            >
-              <FaEraser className="mr-2" />
-              Eraser
-            </Button>
             <Button onClick={undo} className={buttonClass(false)}>
               <FaUndo className="mr-2" />
               Undo
+            </Button>
+            <Button
+              onClick={() => canvasRef.current?.toggleAnnotationsView()}
+              className={buttonClass(tool === "eraser")}
+            >
+              <FaEraser className="mr-2" />
+              Toggle Annotations View
             </Button>
           </div>
 
@@ -293,16 +307,15 @@ export default function Home() {
               />
             </div>
           )}
-          <h2 className="mt-6 mb-4 font-bold border-t-2 pt-2 border-gray-500 md:text-lg text-sm ">Export</h2>
-          <Button
-            onClick={handleExport}
-            className={buttonClass(false)}
-          >
+          <h2 className="mb-4 mt-6 border-t-2 border-gray-500 pt-2 text-sm font-bold md:text-lg">
+            Export
+          </h2>
+          <Button onClick={handleExport} className={buttonClass(false)}>
             <FaDownload className="mr-2" color="black" />
             Export COCO
           </Button>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 relative">
           <Canvas
             classes={classes}
             ref={canvasRef}
