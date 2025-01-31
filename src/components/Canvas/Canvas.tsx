@@ -24,6 +24,7 @@ import { FaTrash } from "react-icons/fa";
 import { hexToRgba } from "~/utils/colors";
 import { validateCOCO } from "~/utils/validateCOCO";
 import toast from "react-hot-toast";
+import { generateRandomId } from "~/utils/uuid";
 
 interface CanvasProps {
   tool: "brush" | "polygon" | "eraser";
@@ -60,15 +61,15 @@ const Canvas = forwardRef(
     const mainCanvasRef = useRef<FabricCanvas>();
     const maskCanvasRef = useRef<FabricCanvas>();
     const containerRef = useRef<HTMLDivElement>(null);
-    const [annotations, setAnnotations] = useState<Annotation[]>([]);
-    const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(false);
-    const [showAnnotations, setShowAnnotations] = useState(false);
     const historyRef = useRef<CanvasState[]>([]);
     const currentPolygonPoints = useRef<Circle[]>([]);
     const currentPolygonLines = useRef<Line[]>([]);
     const isRestoringState = useRef(false);
     const CLOSE_THRESHOLD = 10; // Threshold distance to close polygon
-
+    const [annotations, setAnnotations] = useState<Annotation[]>([]);
+    const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(false);
+    const [showAnnotations, setShowAnnotations] = useState(false);
+    const [imageId, setImageId] = useState<number|null>(null);
 
     // References to event handlers so they can be removed
     const handleMouseDownRef = useRef<(options: fabric.IEvent) => void>();
@@ -137,16 +138,22 @@ const Canvas = forwardRef(
 
       objectsToRemove.forEach((obj) => canvas.remove(obj));
 
-      // Build up the list of annotations from your Fabric objects
+      // Create a mapping for old class IDs to new random numeric IDs
+      // so we can correctly link category_id in annotations.
+      const categoryMap: Record<number, number> = {};
+      classes.forEach((cls) => {
+        categoryMap[cls.id] = generateRandomId();
+      });
+
       const annotationsData: COCOAnnotation[] = annotations
-        .map((annotation, index) => {
-          // For polygons
+        .map((annotation) => {
+          // Either polygon or path
           if (annotation.type === "polygon") {
             const polygon = annotation.object as Polygon;
             const points = polygon.points ?? [];
 
             // Flatten points into [x1, y1, x2, y2, ...]
-            const segmentation = points.flatMap((point) => [point.x, point.y]);
+            const segmentation = points.flatMap((pt) => [pt.x, pt.y]);
 
             // Calculate area using the Shoelace formula
             const area = Math.abs(
@@ -157,11 +164,11 @@ const Canvas = forwardRef(
             );
 
             return {
-              id: index + 1,
-              image_id: 1, 
-              category_id: annotation.class?.id ?? 0,
+              id: generateRandomId(), // random numeric ID
+              image_id: imageId,
+              category_id: annotation.class ? categoryMap[annotation.class.id] : 0,
               segmentation: [segmentation],
-              area: area,
+              area,
               bbox: [
                 polygon.left || 0,
                 polygon.top || 0,
@@ -172,94 +179,71 @@ const Canvas = forwardRef(
             };
           }
 
-          // For paths
           if (annotation.type === "path") {
-            const path = annotation.object as Path;
-            const pathData = path.path ?? [];
-
-            // Convert path data to a polygon by extracting points
+            const pathObj = annotation.object as Path;
+            const pathData = pathObj.path ?? [];
             const points: [number, number][] = [];
             let currentX = 0;
             let currentY = 0;
 
             for (const command of pathData) {
               const [cmd, ...args] = command;
-
               switch (cmd) {
-                case 'M': // Move to
+                case "M": {
                   currentX = args[0];
                   currentY = args[1];
                   points.push([currentX, currentY]);
                   break;
-                case 'L': // Line to
+                }
+                case "L": {
                   currentX = args[0];
                   currentY = args[1];
                   points.push([currentX, currentY]);
                   break;
-                case 'C': // Bezier curve
+                }
+                case "C": {
+                  // For brevity, just move to final x, y
                   const [x1, y1, x2, y2, x, y] = args;
-                  const curvePoints = approximateBezierCurve(
-                    currentX,
-                    currentY,
-                    x1,
-                    y1,
-                    x2,
-                    y2,
-                    x,
-                    y,
-                    10 // Number of points to sample
-                  );
-                  points.push(...curvePoints);
                   currentX = x;
                   currentY = y;
+                  points.push([currentX, currentY]);
                   break;
-                case 'Q': // Quadratic curve
+                }
+                case "Q": {
                   const [qx1, qy1, qx, qy] = args;
-                  const quadPoints = approximateQuadraticCurve(
-                    currentX,
-                    currentY,
-                    qx1,
-                    qy1,
-                    qx,
-                    qy,
-                    10 // Number of points to sample
-                  );
-                  points.push(...quadPoints);
                   currentX = qx;
                   currentY = qy;
+                  points.push([currentX, currentY]);
                   break;
-                case 'Z': // Close path
-                  // Optional: Add the starting point to close the path
+                }
+                case "Z": {
                   if (points.length > 0) {
                     points.push(points[0]);
                   }
                   break;
-                default:
-                  // Handle other commands if necessary
+                }
+                default: {
+                  // No-op for other commands
                   break;
+                }
               }
             }
 
-            // Flatten points into [x1, y1, x2, y2, ...]
-            const segmentation = points.flatMap(([x, y]) => [x, y]);
-
-            // Calculate area and bounding box
-            const boundingRect = path.getBoundingRect();
-
-            // Calculate approximate area using Shoelace formula
+            const segmentation = points.flatMap(([xx, yy]) => [xx, yy]);
             const area = Math.abs(
               points.reduce((sum, point, i, arr) => {
                 const nextPoint = arr[(i + 1) % arr.length];
                 return sum + (point[0] * nextPoint[1] - nextPoint[0] * point[1]);
               }, 0) / 2
             );
+            const boundingRect = pathObj.getBoundingRect();
 
             return {
-              id: index + 1,
-              category_id: annotation.class?.id ?? 0,
+              id: generateRandomId(),
+              image_id: imageId,
+              category_id: annotation.class ? categoryMap[annotation.class.id] : 0,
               segmentation: [segmentation],
-              image_id: 1,
-              area: area,
+              area,
               bbox: [
                 boundingRect.left || 0,
                 boundingRect.top || 0,
@@ -272,45 +256,43 @@ const Canvas = forwardRef(
 
           return null;
         })
-        .filter((annotation): annotation is COCOAnnotation => annotation !== null);
+        .filter((anno): anno is COCOAnnotation => anno !== null);
 
-      // Example "info" and "licenses"
-      // Adjust these fields to match your dataset
+      // Minimal info object
       const info = {
-        description: "Sample dataset description",
-        url: "https://your-website.com",
+        description: "Sample dataset",
+        url: "https://your-url.com",
         version: "1.0",
         year: new Date().getFullYear(),
-        contributor: "Gustavo Barbosa",
+        contributor: "Your Name",
         date_created: new Date().toISOString(),
       };
 
       const licenses = [
         {
-          url: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-          id: 1,
-          name: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International",
+          url: "https://creativecommons.org/licenses/by/4.0/",
+          id: generateRandomId(), // random numeric
+          name: "Creative Commons Attribution 4.0 International",
         },
       ];
 
-      // Example single image entry
       const images = [
         {
-          license: 1,
+          license: licenses?.[0]?.id ?? 0, // random numeric
           file_name: "image.jpg",
-          coco_url: "https://cocodataset.org",
+          coco_url: "https://example.com/coco-url",
           height: canvas.getHeight(),
           width: canvas.getWidth(),
           date_captured: new Date().toISOString(),
           flickr_url: "https://www.flickr.com/photos/tags/flicker/",
-          id: 1,
+          id: imageId,
         },
       ];
 
-      // Build category objects from the classes array
+      // Build category objects from classes, using the mapped random IDs
       const categories = classes.map((cls) => ({
         supercategory: "none",
-        id: cls.id,
+        id: categoryMap[cls.id], // use the random ID
         name: cls.name,
       }));
 
@@ -323,15 +305,16 @@ const Canvas = forwardRef(
         categories,
       };
 
-      const validation = validateCOCO(cocoData)
-      if(!validation.success){
+      // Validate COCO locally
+      const validation = validateCOCO(cocoData);
+      if (!validation.success) {
         toast.error(validation.message);
         console.log(validation.details);
-         return;
-      }
-      else{
+        return;
+      } else {
         toast.success("COCO data is valid");
       }
+
       // Convert to JSON and download
       const dataStr = JSON.stringify(cocoData, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
@@ -445,6 +428,7 @@ const Canvas = forwardRef(
 
           // Add image to canvas
           mainCanvasRef.current.backgroundImage = fabricImage;
+          setImageId(generateRandomId());
         } catch (error) {
           console.error("Error loading image:", error);
         }
@@ -826,4 +810,4 @@ const Canvas = forwardRef(
 
 Canvas.displayName = "Canvas";
 
-export default Canvas;
+export default Canvas; 

@@ -15,6 +15,8 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import toast, { Toaster } from "react-hot-toast";
 import Canvas from "~/components/Canvas/Canvas";
+import { generateRandomId } from "~/utils/uuid";
+
 import {
   FaUpload,
   FaPaintBrush,
@@ -26,37 +28,37 @@ import {
 
 const initialClasses: Class[] = [
   {
-    id: 1,
+    id: generateRandomId(),
     name: "Car",
     color: "#FF0000",
   },
   {
-    id: 2,
+    id: generateRandomId(),
     name: "Tree",
     color: "#00FF00",
   },
   {
-    id: 3,
+    id: generateRandomId(),
     name: "Road",
     color: "#0000FF",
   },
   {
-    id: 6,
+    id: generateRandomId(),
     name: "Bicycle",
     color: "#800080",
   },
   {
-    id: 7,
+    id: generateRandomId(),
     name: "Sky",
     color: "#87CEEB",
   },
   {
-    id: 8,
+    id: generateRandomId(),
     name: "Sidewalk",
     color: "#808080",
   },
   {
-    id: 9,
+    id: generateRandomId(),
     name: "Traffic Light",
     color: "#FFA500",
   },
@@ -143,7 +145,7 @@ export default function Home() {
     }
 
     const newClass: Class = {
-      id: classes.length > 0 ? Math.max(...classes.map((c) => c.id)) + 1 : 1,
+      id: generateRandomId(),
       name: newClassName,
       color: newClassColor,
     };
