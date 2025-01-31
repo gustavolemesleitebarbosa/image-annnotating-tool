@@ -19,6 +19,7 @@ interface CanvasProps {
   brushSize: number;
   imageUrl: string | null;
   selectedClass: Class | null;
+  classes: Class[];
 }
 
 type CanvasState = {
@@ -27,11 +28,17 @@ type CanvasState = {
   background: string;
 };
 
+type Annotation = {
+  type: 'polygon' | 'path';
+  class: Class | null;
+};
+
 const Canvas = forwardRef(
-  ({ tool, brushSize, imageUrl, selectedClass }: CanvasProps, ref) => {
+  ({ tool, brushSize, imageUrl, selectedClass, classes }: CanvasProps, ref) => {
     const mainCanvasRef = useRef<FabricCanvas>();
     const maskCanvasRef = useRef<FabricCanvas>();
     const containerRef = useRef<HTMLDivElement>(null);
+    const annotationsDataRef = useRef<Annotation[]>([]);
     const historyRef = useRef<CanvasState[]>([]);
     const currentPolygonPoints = useRef<Circle[]>([]);
     const isRestoringState = useRef(false);
@@ -85,8 +92,103 @@ const Canvas = forwardRef(
       });
     };
 
+    const exportToCOCO = () => {
+      const canvas = mainCanvasRef.current;
+      const cocoDataset = {
+        images: [],
+        annotations: [],
+        categories: []
+      };
+      // Assuming a single image
+      const imageId = 1;
+      cocoDataset.images.push({
+        id: imageId,
+        width: canvas.getWidth(),
+        height: canvas.getHeight(),
+        file_name: "exported_image.png", // Adjust as needed
+      });
+
+      // Map classes to category IDs
+      if (classes && classes.length > 0) {
+        classes.forEach((cls) => {
+          cocoDataset.categories.push({
+            id: cls.id,
+            name: cls.name,
+            supercategory: "none",
+          });
+        });
+      }
+
+      let annotationId = 1;
+      canvas?.getObjects().forEach((obj, index) => {
+        // Retrieve the class from the object's data
+        const objClass = annotationsDataRef.current[index]?.class as Class | undefined;
+
+        if (!objClass) return; // Skip if class is not assigned
+
+        const annotation: any = {
+          id: annotationId++,
+          image_id: imageId,
+          category_id: objClass.id,
+          segmentation: [],
+          area: 0,
+          bbox: [],
+          iscrowd: 0,
+        };
+        console.log('scategory_id', objClass);
+
+
+        if (annotationsDataRef.current[index]?.type  === "polygon" )  {
+          console.log('polygon');
+          const polygon = obj as fabric.Polygon;
+
+          // Extract segmentation points
+          const points = polygon.get("points") || [];
+          const transformedPoints = points.map((point) => {
+            // Transform the points to absolute coordinates
+            const x = polygon.left! + point.x * polygon.scaleX!;
+            const y = polygon.top! + point.y * polygon.scaleY!;
+            return [x, y];
+          });
+
+          // Flatten the array for segmentation
+          const segmentation = transformedPoints.flat();
+
+          annotation.segmentation = [segmentation];
+
+          // Calculate bounding box [x, y, width, height]
+          const bbox = [
+            polygon.left,
+            polygon.top,
+            polygon.width! * polygon.scaleX!,
+            polygon.height! * polygon.scaleY!,
+          ];
+          annotation.bbox = bbox;
+          annotation.class = objClass;
+          annotation.area = bbox[2] * bbox[3];
+        } else if (annotationsDataRef.current[index]?.type  === "path") {
+          console.log('path');
+          const path = obj as fabric.Path;
+
+          // For brush strokes, we can approximate using the bounding box
+          const bbox = [
+            path.left,
+            path.top,
+            path.width! * path.scaleX!,
+            path.height! * path.scaleY!,
+          ];
+          annotation.bbox = bbox;
+          annotation.area = bbox[2] * bbox[3];
+        }
+        cocoDataset.annotations.push(annotation);
+      });
+      const jsonStr = JSON.stringify(cocoDataset, null, 2);
+      console.log(jsonStr);
+    };
+
     useImperativeHandle(ref, () => ({
       undo,
+      exportToCOCO,
     }));
 
     useEffect(() => {
@@ -181,7 +283,6 @@ const Canvas = forwardRef(
 
           // Add image to canvas
           mainCanvasRef.current.backgroundImage = fabricImage;
-
         } catch (error) {
           console.error("Error loading image:", error);
         }
@@ -209,12 +310,22 @@ const Canvas = forwardRef(
         brush.color = hexToRgba("#f0f0f0", 0.35);
         mainCanvasRef.current.freeDrawingBrush = brush;
       } else if (tool === "brush") {
-        mainCanvasRef.current.isDrawingMode = true;
 
+        const handleMouseDown = () => {
+          annotationsDataRef.current.push({
+            type: 'path',
+            class: selectedClass,
+          });
+        }
+
+        const canvas = mainCanvasRef.current;
+        canvas.isDrawingMode = true;
         const brush = new PencilBrush(mainCanvasRef.current);
         brush.width = brushSize;
         brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
         mainCanvasRef.current.freeDrawingBrush = brush;
+        canvas.on("mouse:down", handleMouseDown);
+
       } else if (tool === "polygon") {
         mainCanvasRef.current.isDrawingMode = false;
         const canvas = mainCanvasRef.current;
@@ -294,6 +405,7 @@ const Canvas = forwardRef(
                 stroke: hexToRgba(selectedClass?.color ?? "#000000", 0.8),
                 strokeWidth: 2,
                 selectable: false,
+                
               });
 
               canvas.add(polygon);
@@ -304,6 +416,10 @@ const Canvas = forwardRef(
               currentPolygonPoints.current = [];
 
               canvas.renderAll();
+              annotationsDataRef.current.push({
+                type: 'polygon',
+                class: selectedClass,
+              });
               return;
             }
           }

@@ -89,7 +89,7 @@ export default function Home() {
   const [classes, setClasses] = useState<Class[]>(() => getInitialClasses());
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<{ undo: () => void }>(null);
+  const canvasRef = useRef<{ undo: () => void, exportToCOCO: () => void }>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -104,8 +104,11 @@ export default function Home() {
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log("Export clicked");
+    if (canvasRef.current) {
+      canvasRef.current.exportToCOCO();
+    } else {
+      console.error("Canvas reference is not available.");
+    }
   };
 
   const buttonClass = (isActive: boolean) => `
@@ -301,6 +304,7 @@ export default function Home() {
         </div>
         <div className="flex-1">
           <Canvas
+            classes={classes}
             ref={canvasRef}
             tool={tool}
             brushSize={brushSize}
