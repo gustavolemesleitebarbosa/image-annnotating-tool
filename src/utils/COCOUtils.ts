@@ -1,4 +1,21 @@
 import { z } from "zod";
+import type { Class } from "~/Types/Class";
+import {
+  type Canvas as FabricCanvas,
+} from "fabric";
+import { generateRandomId } from "~/utils/uuid";
+
+export interface COCOAnnotation {
+  id: number;
+  image_id: number;
+  category_id: number;
+  segmentation: number[][];
+  area: number;
+  bbox: [number, number, number, number];
+  iscrowd: number;
+}
+
+
 
 // Define COCO Schema
 const infoSchema = z.object({
@@ -64,3 +81,57 @@ export const validateCOCO = (data: unknown) => {
     return { success: false, message: "Unexpected error during validation" };
   }
 };
+
+
+
+export function buildCOCOData(
+  canvas: FabricCanvas,
+  annotationsData: COCOAnnotation[],
+  classes: Class[],
+  categoryMap: Record<number, number>,
+  imageId: number|null
+) {
+  const info = {
+    description: "Sample dataset",
+    url: "https://your-url.com",
+    version: "1.0",
+    year: new Date().getFullYear(),
+    contributor: "Your Name",
+    date_created: new Date().toISOString(),
+  };
+
+  const licenses = [
+    {
+      url: "https://creativecommons.org/licenses/by/4.0/",
+      id: generateRandomId(),
+      name: "Creative Commons Attribution 4.0 International",
+    },
+  ];
+
+  const images = [
+    {
+      license: generateRandomId(),
+      file_name: "image.jpg",
+      coco_url: "https://example.com/coco-url",
+      height: canvas.getHeight(),
+      width: canvas.getWidth(),
+      date_captured: new Date().toISOString(),
+      flickr_url: "https://www.flickr.com/photos/tags/flicker/",
+      id: imageId,
+    },
+  ];
+
+  const categories = classes.map((cls) => ({
+    supercategory: "none",
+    id: categoryMap[cls.id],
+    name: cls.name,
+  }));
+
+  return {
+    info,
+    licenses,
+    images,
+    annotations: annotationsData,
+    categories,
+  };
+}

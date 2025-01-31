@@ -22,7 +22,7 @@ import type { Class } from "~/Types/Class";
 import { Button } from "~/components/ui/button";
 import { FaTrash } from "react-icons/fa";
 import { hexToRgba } from "~/utils/colors";
-import { validateCOCO } from "~/utils/validateCOCO";
+import { buildCOCOData, validateCOCO } from "~/utils/COCOUtils";
 import toast from "react-hot-toast";
 import { generateRandomId } from "~/utils/uuid";
 
@@ -45,16 +45,6 @@ type Annotation = {
   class: Class | null;
   object: FabricObject;
 };
-
-interface COCOAnnotation {
-  id: number;
-  image_id: number;
-  category_id: number;
-  segmentation: number[][];
-  area: number;
-  bbox: [number, number, number, number];
-  iscrowd: number;
-}
 
 const Canvas = forwardRef(
   ({ tool, brushSize, imageUrl, selectedClass, classes }: CanvasProps, ref) => {
@@ -123,28 +113,27 @@ const Canvas = forwardRef(
       });
     };
 
-    const exportToCOCO = () => {
-      if (!mainCanvasRef.current) {
+
+    function exportToCOCO() {
+      const canvas = mainCanvasRef.current;
+      if (!canvas) {
         alert("Canvas is not initialized.");
         return;
       }
 
-      const canvas = mainCanvasRef.current;
-
-      // Remove temporary Line and Circle objects before exporting
+      // Remove temporary objects from canvas
       const objectsToRemove = canvas
         .getObjects()
         .filter((obj) => obj.type === "line" || obj.type === "circle");
-
       objectsToRemove.forEach((obj) => canvas.remove(obj));
 
-      // Create a mapping for old class IDs to new random numeric IDs
-      // so we can correctly link category_id in annotations.
+      // Create a mapping from class IDs to new random numeric IDs
       const categoryMap: Record<number, number> = {};
       classes.forEach((cls) => {
         categoryMap[cls.id] = generateRandomId();
       });
 
+      // Build the annotation array
       const annotationsData: COCOAnnotation[] = annotations
         .map((annotation) => {
           // Either polygon or path
@@ -258,75 +247,28 @@ const Canvas = forwardRef(
         })
         .filter((anno): anno is COCOAnnotation => anno !== null);
 
-      // Minimal info object
-      const info = {
-        description: "Sample dataset",
-        url: "https://your-url.com",
-        version: "1.0",
-        year: new Date().getFullYear(),
-        contributor: "Your Name",
-        date_created: new Date().toISOString(),
-      };
+      // Build the final COCO data object
+      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap, imageId);
 
-      const licenses = [
-        {
-          url: "https://creativecommons.org/licenses/by/4.0/",
-          id: generateRandomId(), // random numeric
-          name: "Creative Commons Attribution 4.0 International",
-        },
-      ];
-
-      const images = [
-        {
-          license: licenses?.[0]?.id ?? 0, // random numeric
-          file_name: "image.jpg",
-          coco_url: "https://example.com/coco-url",
-          height: canvas.getHeight(),
-          width: canvas.getWidth(),
-          date_captured: new Date().toISOString(),
-          flickr_url: "https://www.flickr.com/photos/tags/flicker/",
-          id: imageId,
-        },
-      ];
-
-      // Build category objects from classes, using the mapped random IDs
-      const categories = classes.map((cls) => ({
-        supercategory: "none",
-        id: categoryMap[cls.id], // use the random ID
-        name: cls.name,
-      }));
-
-      // Final COCO data structure
-      const cocoData = {
-        info,
-        licenses,
-        images,
-        annotations: annotationsData,
-        categories,
-      };
-
-      // Validate COCO locally
+      // Validate COCO data
       const validation = validateCOCO(cocoData);
       if (!validation.success) {
         toast.error(validation.message);
         console.log(validation.details);
         return;
-      } else {
-        toast.success("COCO data is valid");
       }
+      toast.success("COCO data is valid");
 
-      // Convert to JSON and download
+      // Download
       const dataStr = JSON.stringify(cocoData, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-
       const link = document.createElement("a");
       link.href = url;
       link.download = "annotations.json";
       link.click();
-
       URL.revokeObjectURL(url);
-    };
+    }
 
     const toggleAnnotationsView = () => {
       setShowAnnotations((prev) => !prev);
@@ -689,65 +631,6 @@ const Canvas = forwardRef(
     const annotationsClass = () => `
     absolute w-full  ${showAnnotationsOnTop ? " top-0 left-0 " : "bottom-0 left-0 "} flex h-14 w-full flex-wrap overflow-auto shadow-lg bg-slate-200 border-black px-4
   `;
-
-    // Helper functions for curve approximation
-    function approximateBezierCurve(
-      x0: number,
-      y0: number,
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-      x3: number,
-      y3: number,
-      numPoints: number
-    ): [number, number][] {
-      const points: [number, number][] = [];
-
-      for (let i = 1; i <= numPoints; i++) {
-        const t = i / numPoints;
-        const x =
-          Math.pow(1 - t, 3) * x0 +
-          3 * Math.pow(1 - t, 2) * t * x1 +
-          3 * (1 - t) * Math.pow(t, 2) * x2 +
-          Math.pow(t, 3) * x3;
-        const y =
-          Math.pow(1 - t, 3) * y0 +
-          3 * Math.pow(1 - t, 2) * t * y1 +
-          3 * (1 - t) * Math.pow(t, 2) * y2 +
-          Math.pow(t, 3) * y3;
-        points.push([x, y]);
-      }
-
-      return points;
-    }
-
-    function approximateQuadraticCurve(
-      x0: number,
-      y0: number,
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-      numPoints: number
-    ): [number, number][] {
-      const points: [number, number][] = [];
-
-      for (let i = 1; i <= numPoints; i++) {
-        const t = i / numPoints;
-        const x =
-          Math.pow(1 - t, 2) * x0 +
-          2 * (1 - t) * t * x1 +
-          Math.pow(t, 2) * x2;
-        const y =
-          Math.pow(1 - t, 2) * y0 +
-          2 * (1 - t) * t * y1 +
-          Math.pow(t, 2) * y2;
-        points.push([x, y]);
-      }
-
-      return points;
-    }
 
     return (
       <>
