@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type KeyboardEvent } from "react";
 import ColorPicker from "~/components/ColorPicker/ColorPicker";
 import { type Class } from "~/Types/Class";
 import ClassPicker from "~/components/ClassPicker/ClassPicker";
@@ -109,6 +109,24 @@ export default function Home() {
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  // 1) Add a keydown listener in a useEffect that calls "undo()" on Cmd/Ctrl + Z.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if user pressed "Z" while holding Cmd (Mac) or Ctrl (Windows).
+      // Also handle uppercase "Z" by converting e.key to lowerCase.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault(); // Prevent the browser's default "undo" in text inputs.
+        undo();
+      }
+    };
+
+    // Attach the listener.  
+    window.addEventListener("keydown", handleKeyDown as any);
+
+    // Cleanup.  
+    return () => window.removeEventListener("keydown", handleKeyDown as any);
   }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
