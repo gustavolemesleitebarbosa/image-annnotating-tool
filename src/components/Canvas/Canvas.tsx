@@ -90,7 +90,14 @@ const Canvas = forwardRef(
       clearCanvas();
 
       // Remove current state
-      historyRef.current.pop();
+      const lastState = historyRef.current.pop();
+      console.log("lastState", lastState?.objects[lastState.objects.length - 1]?.type);
+
+      if (lastState && lastState.objects[lastState.objects.length - 1]?.type === "Path" || lastState.objects[lastState.objects.length - 1]?.type === "Polygon") {
+        setAnnotations((prevAnnotations) =>
+          prevAnnotations.filter((_, i) => i !== annotations.length - 1),
+        );
+      }
 
       // Get previous state
       const previousState = historyRef.current[historyRef.current.length - 1];
@@ -639,10 +646,10 @@ const Canvas = forwardRef(
   `;
 
     return (
-      <div className="relative overscroll-none overflow-y-hidden  h-full w-full">
+      <div className="relative h-full w-full overflow-y-hidden overscroll-none">
         <div
           ref={containerRef}
-          className="relative left-12 md:left-0 md:h-full min-h-[400px] h-[calc(100vh-100px)] w-[calc(100vw-80px)] md:w-full"
+          className="relative left-12 h-[calc(100vh-100px)] min-h-[400px] w-[calc(100vw-80px)] md:left-0 md:h-full md:w-full"
           style={{ touchAction: "none" }}
         >
           <canvas id="mainCanvas" />
