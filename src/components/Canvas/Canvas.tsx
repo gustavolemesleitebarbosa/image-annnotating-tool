@@ -335,16 +335,6 @@ const Canvas = forwardRef(
       };
     }, []);
 
-    // Handle change color
-    useEffect(() => {
-      if (!mainCanvasRef.current) return;
-
-      const brush = mainCanvasRef.current.freeDrawingBrush;
-      if (brush) {
-        brush.color = hexToRgba(selectedClass?.color ?? "#f0f0f0", 0.35);
-      }
-    }, [selectedClass?.color]);
-
     // Handle image loading
     useEffect(() => {
       const loadImage = async () => {
