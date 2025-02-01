@@ -297,6 +297,8 @@ const Canvas = forwardRef(
       toggleAnnotationsView,
     }));
 
+  // Initialize canvas
+
     useEffect(() => {
       if (!containerRef.current) return;
 
@@ -312,9 +314,6 @@ const Canvas = forwardRef(
         height: container.clientHeight || 400,
         isDrawingMode: false,
       });
-
-      const brush = new PencilBrush(mainCanvasRef.current);
-      mainCanvasRef.current.freeDrawingBrush = brush;
 
       const canvas = mainCanvasRef.current;
 
@@ -336,6 +335,7 @@ const Canvas = forwardRef(
       };
     }, []);
 
+    // Handle change color
     useEffect(() => {
       if (!mainCanvasRef.current) return;
 
