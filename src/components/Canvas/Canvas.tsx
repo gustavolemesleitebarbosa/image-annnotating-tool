@@ -17,6 +17,7 @@ import {
   PencilBrush,
   type Path,
   util,
+  type TPointerEventInfo,
 } from "fabric";
 import type { Class } from "~/Types/Class";
 import { Button } from "~/components/ui/button";
@@ -25,9 +26,9 @@ import { hexToRgba } from "~/utils/colors";
 import { buildCOCOData, validateCOCO } from "~/utils/COCOUtils";
 import toast from "react-hot-toast";
 import { generateRandomId } from "~/utils/uuid";
-
+import { type COCOAnnotation } from "~/utils/COCOUtils";
 interface CanvasProps {
-  tool: "brush" | "polygon" | "eraser";
+  tool: "brush" | "polygon" | "eraser" |null;
   brushSize: number;
   imageUrl: string | null;
   selectedClass: Class | null;
@@ -49,7 +50,6 @@ type Annotation = {
 const Canvas = forwardRef(
   ({ tool, brushSize, imageUrl, selectedClass, classes }: CanvasProps, ref) => {
     const mainCanvasRef = useRef<FabricCanvas>();
-    const maskCanvasRef = useRef<FabricCanvas>();
     const containerRef = useRef<HTMLDivElement>(null);
     const historyRef = useRef<CanvasState[]>([]);
     const currentPolygonPoints = useRef<Circle[]>([]);
@@ -58,13 +58,14 @@ const Canvas = forwardRef(
     const CLOSE_THRESHOLD = 10; // Threshold distance to close polygon
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
     const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(true);
+    // References to event handlers so they can be removed
+    const handleMouseDownRef = useRef<(options: fabric.IEvent) => void>();
+    const handlePathCreatedRef = useRef<(e: {path: Path}) => void>();
+   
     const [showAnnotations, setShowAnnotations] = useState(false);
     const [imageId, setImageId] = useState<number | null>(null);
 
-    // References to event handlers so they can be removed
-    const handleMouseDownRef = useRef<(options: fabric.IEvent) => void>();
-    const handlePathCreatedRef = useRef<(e: fabric.IEvent) => void>();
-
+ 
     const saveCanvasState = () => {
       if (!mainCanvasRef.current || isRestoringState.current) return;
 
@@ -91,12 +92,17 @@ const Canvas = forwardRef(
 
       // Remove current state
       const lastState = historyRef.current.pop();
-      console.log("lastState", lastState?.objects[lastState.objects.length - 1]?.type);
+      console.log(
+        "lastState",
+        lastState?.objects[lastState.objects.length - 1]?.type,
+      );
 
-      if (lastState && lastState.objects[lastState.objects.length - 1]?.type === "Path" || lastState.objects[lastState.objects.length - 1]?.type === "Polygon") {
-        setAnnotations((prevAnnotations) =>
-          prevAnnotations.filter((_, i) => i !== annotations.length - 1),
-        );
+      if (!lastState?.objects?.length) return;
+
+      const lastObj = lastState.objects[lastState.objects.length - 1];
+      const lastObjType = (lastObj as { type?: string })?.type;
+      if (lastObjType === "Path" || lastObjType === "Polygon") {
+        setAnnotations((prev) => prev.slice(0, -1));
       }
 
       // Get previous state
@@ -140,7 +146,7 @@ const Canvas = forwardRef(
       });
 
       // Build the annotation array
-      const annotationsData: COCOAnnotation[] = annotations
+      const annotationsData= annotations
         .map((annotation) => {
           // Either polygon or path
           if (annotation.type === "polygon") {
@@ -154,7 +160,7 @@ const Canvas = forwardRef(
             const area = Math.abs(
               points.reduce((sum, point, i, arr) => {
                 const nextPoint = arr[(i + 1) % arr.length];
-                return sum + (point.x * nextPoint.y - nextPoint.x * point.y);
+                return sum + (point.x * (nextPoint?.y ?? 0) - (nextPoint?.x ?? 0) * point.y);
               }, 0) / 2,
             );
 
@@ -187,34 +193,33 @@ const Canvas = forwardRef(
               const [cmd, ...args] = command;
               switch (cmd) {
                 case "M": {
-                  currentX = args[0];
-                  currentY = args[1];
+                  currentX = args[0] ?? 0;
+                  currentY = args[1] ?? 0;
                   points.push([currentX, currentY]);
                   break;
                 }
                 case "L": {
-                  currentX = args[0];
-                  currentY = args[1];
+                  currentX = args[0] ?? 0;
+                  currentY = args[1] ?? 0;
                   points.push([currentX, currentY]);
                   break;
                 }
                 case "C": {
-                  // For brevity, just move to final x, y
-                  const [x1, y1, x2, y2, x, y] = args;
-                  currentX = x;
-                  currentY = y;
+                  const [x, y] = args;
+                  currentX = x ?? 0;
+                  currentY = y ?? 0;
                   points.push([currentX, currentY]);
                   break;
                 }
                 case "Q": {
-                  const [qx1, qy1, qx, qy] = args;
-                  currentX = qx;
-                  currentY = qy;
+                  const [qx, qy] = args;
+                  currentX = qx ?? 0;
+                  currentY = qy ?? 0;
                   points.push([currentX, currentY]);
                   break;
                 }
                 case "Z": {
-                  if (points.length > 0) {
+                  if (points.length > 0 && points[0]) {
                     points.push(points[0]);
                   }
                   break;
@@ -230,6 +235,7 @@ const Canvas = forwardRef(
             const area = Math.abs(
               points.reduce((sum, point, i, arr) => {
                 const nextPoint = arr[(i + 1) % arr.length];
+                if (!nextPoint) return sum;
                 return (
                   sum + (point[0] * nextPoint[1] - nextPoint[0] * point[1])
                 );
@@ -297,7 +303,7 @@ const Canvas = forwardRef(
       toggleAnnotationsView,
     }));
 
-  // Initialize canvas
+    // Initialize canvas
 
     useEffect(() => {
       if (!containerRef.current) return;
@@ -309,14 +315,7 @@ const Canvas = forwardRef(
         isDrawingMode: false,
       });
 
-      maskCanvasRef.current = new FabricCanvas("maskCanvas", {
-        width: container.clientWidth || 800,
-        height: container.clientHeight || 400,
-        isDrawingMode: false,
-      });
-
       const canvas = mainCanvasRef.current;
-
       // Save state only when user finishes drawing
       canvas.on("after:render", () => {
         if (!isRestoringState.current) {
@@ -412,14 +411,23 @@ const Canvas = forwardRef(
           0.35,
         );
 
-        // Define and store the event handler
-        const handlePathCreated = (e: fabric.IEvent) => {
-          const path = e.path as Path;
+        const checkCollision = (newObject: Path) => {
+          if (!canvas) return false;
+          return canvas.getObjects().some((obj) => {
+            if (obj === newObject) return false; // Skip self
+            return obj.intersectsWithObject(newObject);
+          });
+        };
 
-          // Assign the selected class to the path
-          path.data = {
-            class: selectedClass,
-          };
+        // Define and store the event handler
+        const handlePathCreated = (e: {path: Path}) => {
+          const path = e?.path;
+
+          if (checkCollision(path)) {
+            path.set({ stroke: "red" }); // Visual warning
+            setTimeout(() => canvas.remove(path), 500); // Remove after warning
+            return;
+          }
 
           // Add annotation with a reference to the path object
           setAnnotations((prevAnnotations) => [
@@ -441,13 +449,13 @@ const Canvas = forwardRef(
         canvas.isDrawingMode = false;
 
         // Define and store the event handler
-        const handleMouseDown = (options: fabric.IEvent) => {
+        const handleMouseDown = (options: TPointerEventInfo<PointerEvent>) => {
           if (!selectedClass) {
             alert("Please select a class before drawing.");
             return;
           }
 
-          const pointer = canvas.getPointer(options.e);
+          const pointer = canvas.getPointer(options.e as unknown as MouseEvent);
           const circle = new Circle({
             left: pointer.x,
             top: pointer.y,
@@ -468,7 +476,7 @@ const Canvas = forwardRef(
                 currentPolygonPoints.current.length - 2
               ];
             const line = new Line(
-              [previousPoint.left, previousPoint.top, circle.left, circle.top],
+              [previousPoint?.left ?? 0, previousPoint?.top ?? 0, circle.left ?? 0, circle.top ?? 0],
               {
                 stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
                 strokeWidth: 2,
@@ -484,8 +492,8 @@ const Canvas = forwardRef(
           // Check if the first and last point are close enough to close the polygon
           if (currentPolygonPoints.current.length > 2) {
             const firstPoint = currentPolygonPoints.current[0];
-            const dx = pointer.x - firstPoint.left;
-            const dy = pointer.y - firstPoint.top;
+            const dx = pointer.x - (firstPoint?.left ?? 0);
+            const dy = pointer.y - (firstPoint?.top ?? 0);
             const distance = Math.sqrt(dx * dx + dy * dy);
             if (distance < CLOSE_THRESHOLD) {
               // Close the polygon
@@ -500,10 +508,10 @@ const Canvas = forwardRef(
                 ];
               const closingLine = new Line(
                 [
-                  previousPoint.left,
-                  previousPoint.top,
-                  firstPoint.left,
-                  firstPoint.top,
+                  previousPoint?.left ?? 0  ,
+                  previousPoint?.top ?? 0,
+                  firstPoint?.left ?? 0,
+                  firstPoint?.top ?? 0,
                 ],
                 {
                   stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
@@ -547,6 +555,20 @@ const Canvas = forwardRef(
               currentPolygonPoints.current = [];
               currentPolygonLines.current = [];
 
+              const checkCollision = (newObject: Polygon) => {
+                if (!canvas) return false;
+                return canvas.getObjects().some((obj) => {
+                  if (obj === newObject) return false; // Skip self
+                  return obj.intersectsWithObject(newObject);
+                });
+              };
+
+              if (checkCollision(polygon)) {
+                polygon.set({ stroke: "red" }); // Visual warning
+                setTimeout(() => canvas.remove(polygon), 500); // Remove after warning
+                return;
+              }
+
               canvas.requestRenderAll();
 
               // Add annotation
@@ -565,14 +587,12 @@ const Canvas = forwardRef(
         };
 
         // Store the handler in ref
+        // @ts-expect-error no type from fabric
         handleMouseDownRef.current = handleMouseDown;
 
         // Attach the event handler
         canvas.on("mouse:down", handleMouseDown);
-      } else if (tool === "eraser") {
-        canvas.isDrawingMode = false;
-        // Implement eraser tool if needed
-      } else {
+      }  else {
         // Default case
         canvas.isDrawingMode = false;
       }
@@ -594,7 +614,7 @@ const Canvas = forwardRef(
       };
     }, [tool, selectedClass, brushSize]);
 
-    // New useEffect to remove temporary lines and circles when tool or selectedClass changes
+    // useEffect to remove temporary lines and circles when tool or selectedClass changes
     useEffect(() => {
       if (!mainCanvasRef.current) return;
       const canvas = mainCanvasRef.current;
@@ -623,7 +643,7 @@ const Canvas = forwardRef(
 
       const objects = canvas.getObjects();
 
-      if (index >= 0 && index < objects.length) {
+      if (index >= 0 && index < objects.length && objects[index]) {
         canvas.remove(objects[index]);
         canvas.renderAll(); // Ensure the canvas updates visually
       }
@@ -643,7 +663,6 @@ const Canvas = forwardRef(
           style={{ touchAction: "none" }}
         >
           <canvas id="mainCanvas" />
-          <canvas id="maskCanvas" />
         </div>
         {showAnnotations && (
           <div className="h-screen w-full overflow-hidden">
@@ -657,7 +676,7 @@ const Canvas = forwardRef(
                     if (!canvas) return;
 
                     const objects = canvas.getObjects();
-                    if (index >= 0 && index < objects.length) {
+                    if (index >= 0 && index < objects.length && objects[index]) {
                       objects[index].set("opacity", 0.6);
                       canvas.renderAll();
                     }
@@ -667,7 +686,7 @@ const Canvas = forwardRef(
                     if (!canvas) return;
 
                     const objects = canvas.getObjects();
-                    if (index >= 0 && index < objects.length) {
+                    if (index >= 0 && index < objects.length && objects[index]) {
                       objects[index].set("opacity", 1);
                       canvas.renderAll();
                     }

@@ -15,8 +15,6 @@ export interface COCOAnnotation {
   iscrowd: number;
 }
 
-
-
 // Define COCO Schema
 const infoSchema = z.object({
   description: z.string(),

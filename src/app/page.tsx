@@ -88,7 +88,7 @@ export default function Home() {
   // State for collapsible sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const [tool, setTool] = useState<"brush" | "polygon" | "eraser" | null>(null);
+  const [tool, setTool] = useState<"brush" | "polygon" | null >(null);
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [newClassName, setNewClassName] = useState<string>("");
@@ -186,7 +186,7 @@ export default function Home() {
     }
   };
 
-  const handleSetTool = (toolType: "brush" | "polygon" | "eraser") => {
+  const handleSetTool = (toolType: "brush" | "polygon") => {
     if ((toolType === "polygon" || toolType === "brush") && !selectedClass) {
       toast.error(`Please select a class before using the ${toolType} tool`);
       return;
@@ -340,7 +340,7 @@ export default function Home() {
             </Button>
           </div>
 
-          {(tool === "brush" || tool === "eraser") && (
+          {tool === "brush" && (
             <div className="mt-4">
               <label className="mb-2 block md:text-sm text-xs font-medium">
                 {tool === "brush" ? "Brush" : "Eraser"} Size: {brushSize}px
