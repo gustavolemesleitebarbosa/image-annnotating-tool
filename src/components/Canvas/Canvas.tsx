@@ -278,7 +278,7 @@ const Canvas = forwardRef(
       removeTemporaryObjects(canvas);
       const categoryMap = createCategoryMap(classes);
       const annotationsData = buildAnnotationsData(annotations, categoryMap, imageId);
-      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap);
+      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap, imageId);
       const validation = validateCOCO(cocoData);
       if (!validation.success) {
         toast.error(validation.message);

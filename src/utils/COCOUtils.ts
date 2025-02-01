@@ -10,8 +10,8 @@ import { generateRandomId } from "~/utils/uuid";
 
 export interface COCOAnnotation {
   id: number;
-  image_id: number;
-  category_id: number;
+  image_id: number | null;
+  category_id: number | null;
   segmentation: number[][];
   area: number;
   bbox: [number, number, number, number];
@@ -100,9 +100,9 @@ export function buildCOCOData(
   annotationsData: COCOAnnotation[],
   classes: Class[],
   categoryMap: Record<number, number>,
+  imageId: number | null,
 ) {
   const licenseID = generateRandomId();
-  const imageId = generateRandomId();
   const info = {
     description: "Sample dataset",
     url: "https://your-url.com",
@@ -169,8 +169,8 @@ function buildPolygonAnnotation(
 
   return {
     id: generateRandomId(),
-    image_id: imageId ?? 0,
-    category_id: catId ?? 0,
+    image_id: imageId ?? null,
+    category_id: catId ?? null,
     segmentation: [segmentation],
     area,
     bbox: [
@@ -247,8 +247,8 @@ export function buildPathAnnotation(
 
   return {
     id: generateRandomId(),
-    image_id: imageId ?? 0,
-    category_id: catId ?? 0,
+    image_id: imageId ?? null,
+    category_id: catId ?? null,
     segmentation: [segmentation],
     area,
     bbox: [
@@ -271,7 +271,7 @@ export function buildAnnotationsData(
     .map((annotation) => {
       if (annotation.type === "polygon") {
         const polygon = annotation.object as Polygon;
-        const catId = annotation.class ? categoryMap[annotation.class.id] : 0;
+        const catId = annotation.class ? categoryMap[annotation.class.id] ?? null : null;
         return buildPolygonAnnotation(polygon, catId ?? 0, imageId ?? 0);
       }
 
