@@ -17,16 +17,17 @@ import {
   PencilBrush,
   type Path,
   util,
-  type TPointerEventInfo,
+  type TPointerEvent,
 } from "fabric";
 import type { Class } from "~/Types/Class";
 import { Button } from "~/components/ui/button";
 import { FaTrash } from "react-icons/fa";
 import { hexToRgba } from "~/utils/colors";
-import { buildCOCOData, validateCOCO } from "~/utils/COCOUtils";
+import { buildCOCOData, createCategoryMap, downloadJSONData, validateCOCO } from "~/utils/COCOUtils";
 import toast from "react-hot-toast";
 import { generateRandomId } from "~/utils/uuid";
-import { type COCOAnnotation } from "~/utils/COCOUtils";
+import { type Annotation, buildAnnotationsData } from "~/utils/COCOUtils";
+
 interface CanvasProps {
   tool: "brush" | "polygon" | "eraser" |null;
   brushSize: number;
@@ -41,11 +42,146 @@ type CanvasState = {
   background: string;
 };
 
-type Annotation = {
-  type: "polygon" | "path";
-  class: Class | null;
-  object: FabricObject;
-};
+// -- Helper to check collision for brush/polygon
+function checkCollision(canvas: FabricCanvas, newObject: FabricObject) {
+  return canvas.getObjects().some((obj) => {
+    if (obj === newObject) return false;
+    return obj.intersectsWithObject(newObject);
+  });
+}
+
+// -- Setup "brush" tool
+function setupBrushTool(
+  canvas: FabricCanvas,
+  brushSize: number,
+  selectedClass: Class | null,
+  setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>,
+  handlePathCreatedRef: React.MutableRefObject<((e: { path: Path }) => void) | undefined>,
+) {
+  canvas.isDrawingMode = true;
+  canvas.freeDrawingBrush = new PencilBrush(canvas);
+  canvas.freeDrawingBrush.width = brushSize;
+  canvas.freeDrawingBrush.color = hexToRgba(selectedClass?.color ?? "#000000", 0.35);
+
+  const handlePathCreated = (e: { path: Path }) => {
+    const pathObj = e.path;
+    if (checkCollision(canvas, pathObj)) {
+      pathObj.set({ stroke: "red" });
+      setTimeout(() => canvas.remove(pathObj), 500);
+      return;
+    }
+    setAnnotations((prev) => [
+      ...prev,
+      { type: "path", class: selectedClass, object: pathObj },
+    ]);
+  };
+
+  handlePathCreatedRef.current = handlePathCreated;
+  canvas.on("path:created", handlePathCreated);
+}
+
+// -- Setup "polygon" tool
+function setupPolygonTool(
+  canvas: FabricCanvas,
+  selectedClass: Class | null,
+  currentPolygonPoints: React.MutableRefObject<Circle[]>,
+  currentPolygonLines: React.MutableRefObject<Line[]>,
+  setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>,
+  handleMouseDownRef: React.MutableRefObject<((opt: {e: TPointerEvent}) => void) | undefined>,
+  CLOSE_THRESHOLD = 10,
+) {
+  canvas.isDrawingMode = false;
+
+  const handleMouseDown = (options: {e: TPointerEvent}) => {
+    if (!selectedClass) {
+      alert("Please select a class before drawing.");
+      return;
+    }
+
+    const pointer = canvas.getPointer(options.e);
+    // 1) Create circle
+    const circle = new Circle({
+      left: pointer.x,
+      top: pointer.y,
+      radius: 3,
+      fill: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+      stroke: "#ffffff",
+      strokeWidth: 1,
+      selectable: false,
+      originX: "center",
+      originY: "center",
+    });
+    canvas.add(circle);
+    currentPolygonPoints.current.push(circle);
+
+    // 2) Create line from previous circle
+    if (currentPolygonPoints.current.length > 1) {
+      const previous = currentPolygonPoints.current[currentPolygonPoints.current.length - 2];
+      const line = new Line([previous?.left ?? 0, previous?.top ?? 0, circle.left, circle.top], {
+        stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+        strokeWidth: 2,
+        selectable: false,
+      });
+      canvas.add(line);
+      currentPolygonLines.current.push(line);
+    }
+
+    // 3) Check if we should close polygon
+    if (currentPolygonPoints.current.length > 2) {
+      const firstPt = currentPolygonPoints.current[0];
+      const dx = pointer.x - (firstPt?.left ?? 0);
+      const dy = pointer.y - (firstPt?.top ?? 0);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < CLOSE_THRESHOLD) {
+        // remove last circle
+        canvas.remove(circle);
+        currentPolygonPoints.current.pop();
+
+        // add closing line
+        const prev = currentPolygonPoints.current[currentPolygonPoints.current.length - 1];
+        const closingLine = new Line([prev?.left ?? 0, prev?.top ?? 0, firstPt?.left ?? 0, firstPt?.top ?? 0], {
+          stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+          strokeWidth: 2,
+          selectable: false,
+        });
+        canvas.add(closingLine);
+        currentPolygonLines.current.push(closingLine);
+
+        // create polygon
+        const polygonPoints = currentPolygonPoints.current.map((pt) => ({ x: pt.left, y: pt.top }));
+        const polygon = new Polygon(polygonPoints, {
+          fill: hexToRgba(selectedClass.color ?? "#f0f0f0", 0.35),
+          stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+          strokeWidth: 2,
+          selectable: false,
+        });
+        canvas.add(polygon);
+
+        // cleanup
+        currentPolygonPoints.current.forEach((pt) => canvas.remove(pt));
+        currentPolygonLines.current.forEach((ln) => canvas.remove(ln));
+        currentPolygonPoints.current = [];
+        currentPolygonLines.current = [];
+
+        // check overlap
+        if (checkCollision(canvas, polygon)) {
+          polygon.set({ stroke: "red" });
+          setTimeout(() => canvas.remove(polygon), 500);
+          return;
+        }
+        setAnnotations((prev) => [
+          ...prev,
+          { type: "polygon", class: selectedClass, object: polygon },
+        ]);
+      }
+    }
+    canvas.requestRenderAll();
+  };
+
+  handleMouseDownRef.current = handleMouseDown;
+  canvas.on("mouse:down", handleMouseDown);
+}
 
 const Canvas = forwardRef(
   ({ tool, brushSize, imageUrl, selectedClass, classes }: CanvasProps, ref) => {
@@ -55,9 +191,8 @@ const Canvas = forwardRef(
     const currentPolygonPoints = useRef<Circle[]>([]);
     const currentPolygonLines = useRef<Line[]>([]);
     const isRestoringState = useRef(false);
-    const CLOSE_THRESHOLD = 10; // Threshold distance to close polygon
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
-    const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(true);
+    const [showAnnotationsOnTop, setShowAnnotationsOnTop] = useState(true);
     // References to event handlers so they can be removed
     const handleMouseDownRef = useRef<(options: fabric.IEvent) => void>();
     const handlePathCreatedRef = useRef<(e: {path: Path}) => void>();
@@ -126,154 +261,24 @@ const Canvas = forwardRef(
       });
     };
 
+    // 1) Remove temporary objects (lines/circles)
+    function removeTemporaryObjects(canvas: FabricCanvas) {
+      const objectsToRemove = canvas
+        .getObjects()
+        .filter((obj) => obj.type === "line" || obj.type === "circle");
+      objectsToRemove.forEach((obj) => canvas.remove(obj));
+    }
+
     function exportToCOCO() {
       const canvas = mainCanvasRef.current;
       if (!canvas) {
         alert("Canvas is not initialized.");
         return;
       }
-
-      // Remove temporary objects from canvas
-      const objectsToRemove = canvas
-        .getObjects()
-        .filter((obj) => obj.type === "line" || obj.type === "circle");
-      objectsToRemove.forEach((obj) => canvas.remove(obj));
-
-      // Create a mapping from class IDs to new random numeric IDs
-      const categoryMap: Record<number, number> = {};
-      classes.forEach((cls) => {
-        categoryMap[cls.id] = generateRandomId();
-      });
-
-      // Build the annotation array
-      const annotationsData= annotations
-        .map((annotation) => {
-          // Either polygon or path
-          if (annotation.type === "polygon") {
-            const polygon = annotation.object as Polygon;
-            const points = polygon.points ?? [];
-
-            // Flatten points into [x1, y1, x2, y2, ...]
-            const segmentation = points.flatMap((pt) => [pt.x, pt.y]);
-
-            // Calculate area using the Shoelace formula
-            const area = Math.abs(
-              points.reduce((sum, point, i, arr) => {
-                const nextPoint = arr[(i + 1) % arr.length];
-                return sum + (point.x * (nextPoint?.y ?? 0) - (nextPoint?.x ?? 0) * point.y);
-              }, 0) / 2,
-            );
-
-            return {
-              id: generateRandomId(), // random numeric ID
-              image_id: imageId,
-              category_id: annotation.class
-                ? categoryMap[annotation.class.id]
-                : 0,
-              segmentation: [segmentation],
-              area,
-              bbox: [
-                polygon.left || 0,
-                polygon.top || 0,
-                polygon.width || 0,
-                polygon.height || 0,
-              ],
-              iscrowd: 0,
-            };
-          }
-
-          if (annotation.type === "path") {
-            const pathObj = annotation.object as Path;
-            const pathData = pathObj.path ?? [];
-            const points: [number, number][] = [];
-            let currentX = 0;
-            let currentY = 0;
-
-            for (const command of pathData) {
-              const [cmd, ...args] = command;
-              switch (cmd) {
-                case "M": {
-                  currentX = args[0] ?? 0;
-                  currentY = args[1] ?? 0;
-                  points.push([currentX, currentY]);
-                  break;
-                }
-                case "L": {
-                  currentX = args[0] ?? 0;
-                  currentY = args[1] ?? 0;
-                  points.push([currentX, currentY]);
-                  break;
-                }
-                case "C": {
-                  const [x, y] = args;
-                  currentX = x ?? 0;
-                  currentY = y ?? 0;
-                  points.push([currentX, currentY]);
-                  break;
-                }
-                case "Q": {
-                  const [qx, qy] = args;
-                  currentX = qx ?? 0;
-                  currentY = qy ?? 0;
-                  points.push([currentX, currentY]);
-                  break;
-                }
-                case "Z": {
-                  if (points.length > 0 && points[0]) {
-                    points.push(points[0]);
-                  }
-                  break;
-                }
-                default: {
-                  // No-op for other commands
-                  break;
-                }
-              }
-            }
-
-            const segmentation = points.flatMap(([xx, yy]) => [xx, yy]);
-            const area = Math.abs(
-              points.reduce((sum, point, i, arr) => {
-                const nextPoint = arr[(i + 1) % arr.length];
-                if (!nextPoint) return sum;
-                return (
-                  sum + (point[0] * nextPoint[1] - nextPoint[0] * point[1])
-                );
-              }, 0) / 2,
-            );
-            const boundingRect = pathObj.getBoundingRect();
-
-            return {
-              id: generateRandomId(),
-              image_id: imageId,
-              category_id: annotation.class
-                ? categoryMap[annotation.class.id]
-                : 0,
-              segmentation: [segmentation],
-              area,
-              bbox: [
-                boundingRect.left || 0,
-                boundingRect.top || 0,
-                boundingRect.width || 0,
-                boundingRect.height || 0,
-              ],
-              iscrowd: 0,
-            };
-          }
-
-          return null;
-        })
-        .filter((anno): anno is COCOAnnotation => anno !== null);
-
-      // Build the final COCO data object
-      const cocoData = buildCOCOData(
-        canvas,
-        annotationsData,
-        classes,
-        categoryMap,
-      );
-
-      // Validate COCO data
+      removeTemporaryObjects(canvas);
+      const categoryMap = createCategoryMap(classes);
+      const annotationsData = buildAnnotationsData(annotations, categoryMap, imageId);
+      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap);
       const validation = validateCOCO(cocoData);
       if (!validation.success) {
         toast.error(validation.message);
@@ -281,16 +286,7 @@ const Canvas = forwardRef(
         return;
       }
       toast.success("COCO data is valid");
-
-      // Download
-      const dataStr = JSON.stringify(cocoData, null, 2);
-      const blob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "annotations.json";
-      link.click();
-      URL.revokeObjectURL(url);
+      downloadJSONData(cocoData, "annotations.json");
     }
 
     const toggleAnnotationsView = () => {
@@ -304,7 +300,6 @@ const Canvas = forwardRef(
     }));
 
     // Initialize canvas
-
     useEffect(() => {
       if (!containerRef.current) return;
 
@@ -390,7 +385,7 @@ const Canvas = forwardRef(
       if (!mainCanvasRef.current) return;
       const canvas = mainCanvasRef.current;
 
-      // Remove previous event handlers
+      // Remove old event handlers
       if (handleMouseDownRef.current) {
         canvas.off("mouse:down", handleMouseDownRef.current);
       }
@@ -398,202 +393,24 @@ const Canvas = forwardRef(
         canvas.off("path:created", handlePathCreatedRef.current);
       }
 
-      // Clear any temporary data when switching tools
+      // Clear temporary data
       currentPolygonPoints.current = [];
       currentPolygonLines.current = [];
 
+      // Set up tool
       if (tool === "brush") {
-        canvas.isDrawingMode = true;
-        canvas.freeDrawingBrush = new PencilBrush(canvas);
-        canvas.freeDrawingBrush.width = brushSize;
-        canvas.freeDrawingBrush.color = hexToRgba(
-          selectedClass?.color ?? "#000000",
-          0.35,
-        );
-
-        const checkCollision = (newObject: Path) => {
-          if (!canvas) return false;
-          return canvas.getObjects().some((obj) => {
-            if (obj === newObject) return false; // Skip self
-            return obj.intersectsWithObject(newObject);
-          });
-        };
-
-        // Define and store the event handler
-        const handlePathCreated = (e: {path: Path}) => {
-          const path = e?.path;
-
-          if (checkCollision(path)) {
-            path.set({ stroke: "red" }); // Visual warning
-            setTimeout(() => canvas.remove(path), 500); // Remove after warning
-            return;
-          }
-
-          // Add annotation with a reference to the path object
-          setAnnotations((prevAnnotations) => [
-            ...prevAnnotations,
-            {
-              type: "path",
-              class: selectedClass,
-              object: path,
-            },
-          ]);
-        };
-
-        // Store the handler in ref
-        handlePathCreatedRef.current = handlePathCreated;
-
-        // Attach the event handler
-        canvas.on("path:created", handlePathCreated);
+        setupBrushTool(canvas, brushSize, selectedClass, setAnnotations, handlePathCreatedRef);
       } else if (tool === "polygon") {
-        canvas.isDrawingMode = false;
-
-        // Define and store the event handler
-        const handleMouseDown = (options: TPointerEventInfo<PointerEvent>) => {
-          if (!selectedClass) {
-            alert("Please select a class before drawing.");
-            return;
-          }
-
-          const pointer = canvas.getPointer(options.e as unknown as MouseEvent);
-          const circle = new Circle({
-            left: pointer.x,
-            top: pointer.y,
-            radius: 3,
-            fill: hexToRgba(selectedClass.color ?? "#000000", 0.8),
-            stroke: "#ffffff",
-            strokeWidth: 1,
-            selectable: false,
-            originX: "center",
-            originY: "center",
-          });
-          canvas.add(circle);
-          currentPolygonPoints.current.push(circle);
-
-          if (currentPolygonPoints.current.length > 1) {
-            const previousPoint =
-              currentPolygonPoints.current[
-                currentPolygonPoints.current.length - 2
-              ];
-            const line = new Line(
-              [previousPoint?.left ?? 0, previousPoint?.top ?? 0, circle.left ?? 0, circle.top ?? 0],
-              {
-                stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
-                strokeWidth: 2,
-                selectable: false,
-                hasControls: false,
-                hasBorders: false,
-              },
-            );
-            canvas.add(line);
-            currentPolygonLines.current.push(line);
-          }
-
-          // Check if the first and last point are close enough to close the polygon
-          if (currentPolygonPoints.current.length > 2) {
-            const firstPoint = currentPolygonPoints.current[0];
-            const dx = pointer.x - (firstPoint?.left ?? 0);
-            const dy = pointer.y - (firstPoint?.top ?? 0);
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < CLOSE_THRESHOLD) {
-              // Close the polygon
-              // Remove the last point and use the first point instead
-              canvas.remove(circle);
-              currentPolygonPoints.current.pop();
-
-              // Add closing line
-              const previousPoint =
-                currentPolygonPoints.current[
-                  currentPolygonPoints.current.length - 1
-                ];
-              const closingLine = new Line(
-                [
-                  previousPoint?.left ?? 0  ,
-                  previousPoint?.top ?? 0,
-                  firstPoint?.left ?? 0,
-                  firstPoint?.top ?? 0,
-                ],
-                {
-                  stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
-                  strokeWidth: 2,
-                  selectable: false,
-                  hasControls: false,
-                  hasBorders: false,
-                },
-              );
-              canvas.add(closingLine);
-              currentPolygonLines.current.push(closingLine);
-
-              // Create polygon from points
-              const polygonPoints = currentPolygonPoints.current.map(
-                (point) => {
-                  return {
-                    x: point.left,
-                    y: point.top,
-                  };
-                },
-              );
-
-              const polygon = new Polygon(polygonPoints, {
-                fill: hexToRgba(selectedClass.color ?? "#f0f0f0", 0.35),
-                stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
-                strokeWidth: 2,
-                selectable: false,
-              });
-
-              canvas.add(polygon);
-
-              // Remove temporary points and lines
-              currentPolygonPoints.current.forEach((point) =>
-                canvas.remove(point),
-              );
-              currentPolygonLines.current.forEach((line) =>
-                canvas.remove(line),
-              );
-
-              // Clear arrays
-              currentPolygonPoints.current = [];
-              currentPolygonLines.current = [];
-
-              const checkCollision = (newObject: Polygon) => {
-                if (!canvas) return false;
-                return canvas.getObjects().some((obj) => {
-                  if (obj === newObject) return false; // Skip self
-                  return obj.intersectsWithObject(newObject);
-                });
-              };
-
-              if (checkCollision(polygon)) {
-                polygon.set({ stroke: "red" }); // Visual warning
-                setTimeout(() => canvas.remove(polygon), 500); // Remove after warning
-                return;
-              }
-
-              canvas.requestRenderAll();
-
-              // Add annotation
-              setAnnotations((prevAnnotations) => [
-                ...prevAnnotations,
-                {
-                  type: "polygon",
-                  class: selectedClass,
-                  object: polygon,
-                },
-              ]);
-            }
-          }
-
-          canvas.requestRenderAll();
-        };
-
-        // Store the handler in ref
-        // @ts-expect-error no type from fabric
-        handleMouseDownRef.current = handleMouseDown;
-
-        // Attach the event handler
-        canvas.on("mouse:down", handleMouseDown);
-      }  else {
-        // Default case
+        setupPolygonTool(
+          canvas,
+          selectedClass,
+          currentPolygonPoints,
+          currentPolygonLines,
+          setAnnotations,
+          handleMouseDownRef
+        );
+      } else {
+        // default / eraser
         canvas.isDrawingMode = false;
       }
 
@@ -612,7 +429,7 @@ const Canvas = forwardRef(
         currentPolygonPoints.current = [];
         currentPolygonLines.current = [];
       };
-    }, [tool, selectedClass, brushSize]);
+    }, [tool, brushSize, selectedClass]);
 
     // useEffect to remove temporary lines and circles when tool or selectedClass changes
     useEffect(() => {
@@ -702,7 +519,7 @@ const Canvas = forwardRef(
               ))}
               <Button
                 className="m-2 bg-blue-300 hover:bg-blue-300"
-                onClick={() => setshowAnnotationsOnTop(!showAnnotationsOnTop)}
+                onClick={() => setShowAnnotationsOnTop(!showAnnotationsOnTop)}
               >
                 {" "}
                 {showAnnotationsOnTop ? "bottom" : "Top"}
