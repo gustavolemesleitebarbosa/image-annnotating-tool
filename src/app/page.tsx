@@ -24,7 +24,7 @@ import {
   FaEraser,
   FaUndo,
   FaDownload,
-  FaBars,
+  FaChevronRight,
 } from "react-icons/fa";
 
 // Initial classes
@@ -128,6 +128,7 @@ export default function Home() {
     // Cleanup.  
     return () => window.removeEventListener("keydown", handleKeyDown as any);
   }, []);
+  
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -206,10 +207,10 @@ export default function Home() {
       {/* Toggle button (visible on small/medium screens) */}
       {!isSidebarOpen && (
         <button
-          className="md:hidden absolute top-2 left-2 z-50 bg-gray-800 text-white p-2 rounded"
-          onClick={() => setIsSidebarOpen(true)}
+        className="md:hidden absolute top-1/2 left-2 transform -translate-y-1/2 z-50 bg-gray-800 text-white p-2 rounded"
+        onClick={() => setIsSidebarOpen(true)}
         >
-          <FaBars />
+          <FaChevronRight />
         </button>
       )}
 
@@ -225,10 +226,10 @@ export default function Home() {
         >
           {/* Hide the sidebar close button on larger screens */}
           <button
-            className="md:hidden mb-2 self-end bg-gray-300 hover:bg-gray-400 text-black rounded px-2 py-1"
+            className="md:hidden mb-2 self-end font-bold border border-black bg-gray-300 hover:bg-gray-400 text-black rounded-full h-8 w-8"
             onClick={() => setIsSidebarOpen(false)}
           >
-            Close
+            X
           </button>
 
           <h2 className="mb-4 text-xs text-sm font-bold md:text-lg">Classes</h2>
@@ -366,14 +367,7 @@ export default function Home() {
 
         {/* Main canvas container with safe-area padding */}
         <div
-          className="relative flex-1"
-          style={{
-            // Add safe-area padding at the bottom for iPhone
-            paddingBottom:
-              "env(safe-area-inset-bottom, 0px)", // Modern iOS devices
-            WebkitPaddingBottom:
-              "env(safe-area-inset-bottom, 0px)", // Safari-specific prefix
-          }}
+          className="relaxtive flex-1 overflow-hidden"
         >
           <Canvas
             ref={canvasRef}

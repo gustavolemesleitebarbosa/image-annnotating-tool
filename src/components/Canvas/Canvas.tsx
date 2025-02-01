@@ -59,7 +59,7 @@ const Canvas = forwardRef(
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
     const [showAnnotationsOnTop, setshowAnnotationsOnTop] = useState(true);
     const [showAnnotations, setShowAnnotations] = useState(false);
-    const [imageId, setImageId] = useState<number|null>(null);
+    const [imageId, setImageId] = useState<number | null>(null);
 
     // References to event handlers so they can be removed
     const handleMouseDownRef = useRef<(options: fabric.IEvent) => void>();
@@ -113,7 +113,6 @@ const Canvas = forwardRef(
       });
     };
 
-
     function exportToCOCO() {
       const canvas = mainCanvasRef.current;
       if (!canvas) {
@@ -149,13 +148,15 @@ const Canvas = forwardRef(
               points.reduce((sum, point, i, arr) => {
                 const nextPoint = arr[(i + 1) % arr.length];
                 return sum + (point.x * nextPoint.y - nextPoint.x * point.y);
-              }, 0) / 2
+              }, 0) / 2,
             );
 
             return {
               id: generateRandomId(), // random numeric ID
               image_id: imageId,
-              category_id: annotation.class ? categoryMap[annotation.class.id] : 0,
+              category_id: annotation.class
+                ? categoryMap[annotation.class.id]
+                : 0,
               segmentation: [segmentation],
               area,
               bbox: [
@@ -222,15 +223,19 @@ const Canvas = forwardRef(
             const area = Math.abs(
               points.reduce((sum, point, i, arr) => {
                 const nextPoint = arr[(i + 1) % arr.length];
-                return sum + (point[0] * nextPoint[1] - nextPoint[0] * point[1]);
-              }, 0) / 2
+                return (
+                  sum + (point[0] * nextPoint[1] - nextPoint[0] * point[1])
+                );
+              }, 0) / 2,
             );
             const boundingRect = pathObj.getBoundingRect();
 
             return {
               id: generateRandomId(),
               image_id: imageId,
-              category_id: annotation.class ? categoryMap[annotation.class.id] : 0,
+              category_id: annotation.class
+                ? categoryMap[annotation.class.id]
+                : 0,
               segmentation: [segmentation],
               area,
               bbox: [
@@ -248,7 +253,12 @@ const Canvas = forwardRef(
         .filter((anno): anno is COCOAnnotation => anno !== null);
 
       // Build the final COCO data object
-      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap);
+      const cocoData = buildCOCOData(
+        canvas,
+        annotationsData,
+        classes,
+        categoryMap,
+      );
 
       // Validate COCO data
       const validation = validateCOCO(cocoData);
@@ -286,13 +296,13 @@ const Canvas = forwardRef(
       const container = containerRef.current;
       mainCanvasRef.current = new FabricCanvas("mainCanvas", {
         width: container.clientWidth || 800,
-        height: container.clientHeight || 600,
+        height: container.clientHeight || 400,
         isDrawingMode: false,
       });
 
       maskCanvasRef.current = new FabricCanvas("maskCanvas", {
         width: container.clientWidth || 800,
-        height: container.clientHeight || 600,
+        height: container.clientHeight || 400,
         isDrawingMode: false,
       });
 
@@ -402,7 +412,7 @@ const Canvas = forwardRef(
         canvas.freeDrawingBrush.width = brushSize;
         canvas.freeDrawingBrush.color = hexToRgba(
           selectedClass?.color ?? "#000000",
-          0.35
+          0.35,
         );
 
         // Define and store the event handler
@@ -461,19 +471,14 @@ const Canvas = forwardRef(
                 currentPolygonPoints.current.length - 2
               ];
             const line = new Line(
-              [
-                previousPoint.left,
-                previousPoint.top,
-                circle.left,
-                circle.top,
-              ],
+              [previousPoint.left, previousPoint.top, circle.left, circle.top],
               {
                 stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
                 strokeWidth: 2,
                 selectable: false,
                 hasControls: false,
                 hasBorders: false,
-              }
+              },
             );
             canvas.add(line);
             currentPolygonLines.current.push(line);
@@ -509,7 +514,7 @@ const Canvas = forwardRef(
                   selectable: false,
                   hasControls: false,
                   hasBorders: false,
-                }
+                },
               );
               canvas.add(closingLine);
               currentPolygonLines.current.push(closingLine);
@@ -521,7 +526,7 @@ const Canvas = forwardRef(
                     x: point.left,
                     y: point.top,
                   };
-                }
+                },
               );
 
               const polygon = new Polygon(polygonPoints, {
@@ -535,9 +540,11 @@ const Canvas = forwardRef(
 
               // Remove temporary points and lines
               currentPolygonPoints.current.forEach((point) =>
-                canvas.remove(point)
+                canvas.remove(point),
               );
-              currentPolygonLines.current.forEach((line) => canvas.remove(line));
+              currentPolygonLines.current.forEach((line) =>
+                canvas.remove(line),
+              );
 
               // Clear arrays
               currentPolygonPoints.current = [];
@@ -598,10 +605,7 @@ const Canvas = forwardRef(
       // Remove all Line and Circle objects
       const objectsToRemove = canvas
         .getObjects()
-        .filter(
-          (obj) =>
-            obj.type === "line" || obj.type === "circle"
-        );
+        .filter((obj) => obj.type === "line" || obj.type === "circle");
 
       objectsToRemove.forEach((obj) => canvas.remove(obj));
 
@@ -629,68 +633,72 @@ const Canvas = forwardRef(
     };
 
     const annotationsClass = () => `
-    absolute w-full  ${showAnnotationsOnTop ? " top-0 left-0 " : "bottom-0 left-0 "} flex h-14 w-full flex-wrap overflow-auto shadow-lg bg-slate-200 border-black px-4
+    absolute w-full
+    ${showAnnotationsOnTop ? "top-0 left-0 h-14" : "bottom-14 md:bottom-0 left-0 h-14"} 
+    flex w-full flex-wrap shadow-lg bg-slate-200 border-black px-4 sm:px-6 overflow-auto max-h-14 
   `;
 
     return (
-      <>
+      <div className="relative overscroll-none overflow-y-hidden  h-full w-full">
         <div
           ref={containerRef}
-          className="relative h-full min-h-[600px] w-full"
+          className="relative left-12 md:left-0 md:h-full min-h-[400px] h-[calc(100vh-100px)] w-[calc(100vw-80px)] md:w-full"
           style={{ touchAction: "none" }}
         >
           <canvas id="mainCanvas" />
           <canvas id="maskCanvas" />
         </div>
         {showAnnotations && (
-          <div className={annotationsClass()}>
-            {annotations.map((annotation, index) => (
+          <div className="h-screen w-full overflow-hidden">
+            <div className={annotationsClass()}>
+              {annotations.map((annotation, index) => (
+                <Button
+                  className="z-10 m-2 border border-slate-300 bg-slate-50 text-black hover:bg-slate-400"
+                  key={index}
+                  onMouseEnter={() => {
+                    const canvas = mainCanvasRef.current;
+                    if (!canvas) return;
+
+                    const objects = canvas.getObjects();
+                    if (index >= 0 && index < objects.length) {
+                      objects[index].set("opacity", 0.6);
+                      canvas.renderAll();
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    const canvas = mainCanvasRef.current;
+                    if (!canvas) return;
+
+                    const objects = canvas.getObjects();
+                    if (index >= 0 && index < objects.length) {
+                      objects[index].set("opacity", 1);
+                      canvas.renderAll();
+                    }
+                  }}
+                  onClick={() => removeAnnotation(index)}
+                >
+                  <div
+                    className="flex h-3 w-3 rounded-full"
+                    style={{ backgroundColor: annotation.class?.color }}
+                  ></div>
+                  {annotation.class?.name} <FaTrash size={8} />
+                </Button>
+              ))}
               <Button
-                className="m-2 border z-10 border-slate-300 bg-slate-50 text-black hover:bg-slate-400"
-                key={index}
-                onMouseEnter={() => {
-                  const canvas = mainCanvasRef.current;
-                  if (!canvas) return;
-
-                  const objects = canvas.getObjects();
-                  if (index >= 0 && index < objects.length) {
-                    objects[index].set("opacity", 0.6);
-                    canvas.renderAll();
-                  }
-                }}
-                onMouseLeave={() => {
-                  const canvas = mainCanvasRef.current;
-                  if (!canvas) return;
-
-                  const objects = canvas.getObjects();
-                  if (index >= 0 && index < objects.length) {
-                    objects[index].set("opacity", 1);
-                    canvas.renderAll();
-                  }
-                }}
-                onClick={() => removeAnnotation(index)}
+                className="m-2 bg-blue-300 hover:bg-blue-300"
+                onClick={() => setshowAnnotationsOnTop(!showAnnotationsOnTop)}
               >
-                <div
-                  className="flex w-3 h-3 rounded-full"
-                  style={{ backgroundColor: annotation.class?.color }}
-                ></div>
-                {annotation.class?.name} <FaTrash size={8}/>
+                {" "}
+                {showAnnotationsOnTop ? "bottom" : "Top"}
               </Button>
-            ))}
-            <Button
-              className="m-2 bg-blue-300 hover:bg-blue-300"
-              onClick={() => setshowAnnotationsOnTop(!showAnnotationsOnTop)}
-            >
-              {" "}
-              {showAnnotationsOnTop ? "bottom" : "Top"}
-            </Button>
+            </div>
           </div>
         )}
-      </>
+      </div>
     );
   },
 );
 
 Canvas.displayName = "Canvas";
 
-export default Canvas; 
+export default Canvas;
