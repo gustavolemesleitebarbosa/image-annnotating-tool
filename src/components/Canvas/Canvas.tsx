@@ -6,6 +6,7 @@ import {
   useImperativeHandle,
   forwardRef,
   useState,
+  useCallback,
 } from "react";
 import {
   Canvas as FabricCanvas,
@@ -233,7 +234,7 @@ const Canvas = forwardRef(
     const [showAnnotations, setShowAnnotations] = useState(false);
     const [imageId, setImageId] = useState<number | null>(null);
 
-    const saveCanvasState = () => {
+    const saveCanvasState = useCallback(() => {
       if (!mainCanvasRef.current || isRestoringState.current) return;
       console.log("saveCanvasState", mainCanvasRef.current.getObjects().length);
       const state = mainCanvasRef.current.toJSON() as CanvasState;
@@ -258,14 +259,37 @@ const Canvas = forwardRef(
         historyRef.current = historyRef.current.slice(-500);
       }
       console.log("Saved state, total states:", historyRef.current.length);
-    };
+    }, [classes]);
 
-    const clearCanvas = () => {
+    const clearCanvas = useCallback(() => {
       if (!mainCanvasRef.current) return;
       mainCanvasRef.current.remove(...mainCanvasRef.current.getObjects());
-    };
+    }, [mainCanvasRef]);
 
-    const undo = () => {
+    const removeLastLineAndCircle = useCallback(
+      (canvas: FabricCanvas, lines: Line[], circles: Circle[]): boolean => {
+        if (lines.length > 0) {
+          canvas.remove(lines[lines.length - 1] as unknown as Line); // Remove the last line
+          currentPolygonLines.current = [
+            ...currentPolygonLines.current.slice(0, -1),
+          ];
+        }
+
+        if (circles.length > 0) {
+          canvas.remove(circles[circles.length - 1] as unknown as Circle); // Remove the last circle
+          currentPolygonPoints.current = [
+            ...currentPolygonPoints.current.slice(0, -1),
+          ];
+        }
+        if (lines.length === 0 && circles.length === 0) {
+          return true;
+        }
+        return false;
+      },
+      [],
+    );
+
+    const undo = useCallback(() => {
       if (!mainCanvasRef.current) return;
       const canvas = mainCanvasRef.current;
 
@@ -350,41 +374,17 @@ const Canvas = forwardRef(
       if (canvas.getObjects().length === lastState.objects.length) {
         undo();
       }
-    };
-
-    function removeLastLineAndCircle(
-      canvas: FabricCanvas,
-      lines: Line[],
-      circles: Circle[],
-    ): boolean {
-      if (lines.length > 0) {
-        canvas.remove(lines[lines.length - 1] as unknown as Line); // Remove the last line
-        currentPolygonLines.current = [
-          ...currentPolygonLines.current.slice(0, -1),
-        ];
-      }
-
-      if (circles.length > 0) {
-        canvas.remove(circles[circles.length - 1] as unknown as Circle); // Remove the last circle
-        currentPolygonPoints.current = [
-          ...currentPolygonPoints.current.slice(0, -1),
-        ];
-      }
-      if (lines.length === 0 && circles.length === 0) {
-        return true;
-      }
-      return false;
-    }
+    }, [clearCanvas, removeLastLineAndCircle, classes]);
 
     // Remove temporary objects (lines/circles)
-    function removeTemporaryObjects(canvas: FabricCanvas) {
+    const removeTemporaryObjects = useCallback((canvas: FabricCanvas) => {
       const objectsToRemove = canvas
         .getObjects()
         .filter((obj) => obj.type === "line" || obj.type === "circle");
       objectsToRemove.forEach((obj) => canvas.remove(obj));
-    }
+    }, []);
 
-    function exportToCOCO() {
+    const exportToCOCO = useCallback(() => {
       const canvas = mainCanvasRef.current;
       if (!canvas) {
         alert("Canvas is not initialized.");
@@ -412,7 +412,7 @@ const Canvas = forwardRef(
       }
       toast.success("COCO data is valid");
       downloadJSONData(cocoData, "annotations.json");
-    }
+    }, [annotations, classes, imageId, removeTemporaryObjects]);
 
     const toggleAnnotationsView = () => {
       setShowAnnotations((prev) => !prev);
