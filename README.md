@@ -18,6 +18,7 @@ A React-based web application for annotating images with support for brush and p
 ## Setup Instructions
 
 1. **Prerequisites**
+
    - Node.js (higher than 18, recommended version 18.18.2 can get it via nvm)
    - npm or yarn, but preferably pnpm [Why use pnpm](https://pnpm.io/pnpm-vs-npm)
 
@@ -28,47 +29,44 @@ A React-based web application for annotating images with support for brush and p
    - run `pnpm dev`
    - Go to to your browser, the app should be accessible on http://localhost:3000
 
-
 ## App dependencies (third party libs)
 
-   ```json
-   {
-     "dependencies": {
-       "fabric": "^5.0.0",
-       "react": "^18.0.0",
-       "react-hot-toast": "^2.0.0",
-       "react-icons": "^4.0.0",
-       "@/components/ui": "^1.0.0"
-     }
-   }
-   ```
+```json
+{
+  "dependencies": {
+    "fabric": "^5.0.0",
+    "react": "^18.0.0",
+    "react-hot-toast": "^2.0.0",
+    "react-icons": "^4.0.0",
+    "@/components/ui": "^1.0.0"
+  }
+}
+```
 
 ## App folder structure
 
-   Place the following components in your project structure:
-   ```
-   components/
-   ├── Canvas/
-   │   └── Canvas.tsx
-   ├── ColorPicker/
-   │   └── ColorPicker.tsx
-   ├── ClassPicker/
-   │   └── ClassPicker.tsx
-   └── ui/
-       ├── button.tsx
-       ├── dialog.tsx
-       └── input.tsx
-   ```
+Place the following components in your project structure:
 
-## Usage
-
-
+```
+components/
+├── Canvas/
+│   └── Canvas.tsx
+├── ColorPicker/
+│   └── ColorPicker.tsx
+├── ClassPicker/
+│   └── ClassPicker.tsx
+└── ui/
+    ├── button.tsx
+    ├── dialog.tsx
+    └── input.tsx
+```
 
 ## Features Guide
 
 ### 1. Class Management
 
 Classes represent different annotation categories. Each class has:
+
 - Unique name
 - Distinctive color
 - Generated ID
@@ -78,12 +76,14 @@ Default classes include common objects like "Car", "Tree", "Road", etc. New clas
 ### 2. Annotation Tools
 
 #### Brush Tool
+
 - Freeform drawing
 - Adjustable brush size
 - Semi-transparent fill
 - Collision detection
 
 #### Polygon Tool
+
 - Click to place points
 - Auto-closes when near starting point
 - Collision detection
@@ -92,31 +92,68 @@ Default classes include common objects like "Car", "Tree", "Road", etc. New clas
 ### 3. COCO Export
 
 Exports annotations in COCO format with:
+
 - Image information
 - Category definitions
 - Segmentation data
 - Bounding boxes
 - Area calculations
 
-### 4. Canvas Controls
+### 4. Basic Usage and Tools
 
-Available methods through the canvas ref:
-```typescript
-{
-  undo: () => void;
-  exportToCOCO: () => void;
-  toggleAnnotationsView: () => void;
-}
-```
+# Annotation Tool Documentation
+
+## Getting Started
+
+To begin using the annotation tool:
+
+- Click the **Upload Image** button in the sidebar to add a new image.
+- Once uploaded, you can start adding annotations.
+
+## Class Management
+
+  - To annotate with specific classes, choose a predefined class from the **Select a Class** drop-down menu.
+  - Alternatively, create a custom class by clicking the **Add Class** button.
+  - Custom classes are stored in your browser's local storage, so they persist across sessions.
+  - When creating a new class, ensure that the name and color are unique.
+
+## Annotation Tools 
+
+  - Select either the **Brush** or **Polygon** tool from the sidebar to start annotating.
+  - Once selected, you can begin adding annotations to the canvas.
+
+### Undo Feature
+
+  - The **Undo** button allows you to revert the last annotation action:
+  - For polygons, it can undo the last added point or remove the entire shape.
+  - For the brush tool, it removes the last drawn stroke.
+  - Multiple undo actions can be performed sequentially.
+
+## Annotation Control & COCO Export
+
+  - Click the **Toggle Annotations** button to display the list of annotations.
+  - The annotation list can be positioned at the **top** or **bottom** of the window for better accessibility.
+  - Clicking an annotation in the list removes it from the canvas.
+  - To export annotations in **COCO format**, click the **Export COCO** button. This generates a JSON file containing the annotations.
+
+## Collision Detection
+
+  - The app includes a collision detection system to prevent overlapping annotations.
+  - Collision detection is based on **bounding boxes**, meaning that even if two annotations do not actually intersect, they may still be flagged as a collision.
+  - This limitation is due to Fabric.js not offering a straightforward way to detect precise intersection beyond bounding box checks.
+  - For more information on this limitation, see this [Stack Overflow thread](https://stackoverflow.com/questions/23258284/collision-detection-fabrics-js).
+
 
 ## Best Practices
 
 1. **Performance**
+
    - Limit canvas size to viewport dimensions
    - Use appropriate brush sizes
    - Manage state updates efficiently
 
 2. **Annotation Guidelines**
+
    - Avoid overlapping annotations
    - Complete polygons before switching tools
    - Use appropriate tool for the task
@@ -131,11 +168,13 @@ Available methods through the canvas ref:
 Common issues and solutions:
 
 1. **Collision Detection**
+
    - Red highlight indicates overlap
    - Annotation is automatically removed
    - Try repositioning or using smaller brush size
 
 2. **Polygon Tool**
+
    - Ensure points are placed accurately
    - Click near starting point to close
    - Use undo for mistakes
@@ -148,16 +187,19 @@ Common issues and solutions:
 ## Technical Details
 
 ### State Management
+
 - Uses React's useState for UI state
 - Fabric.js canvas state management
 - History tracking for undo functionality
 
 ### Event Handling
+
 - Mouse events for polygon creation
 - Path creation events for brush tool
 - Canvas rendering events
 
 ### Data Structure
+
 ```typescript
 type Annotation = {
   type: "path" | "polygon";
@@ -167,6 +209,7 @@ type Annotation = {
 ```
 
 ### COCO Format Structure
+
 ```typescript
 interface COCOData {
   images: Array<{
@@ -193,7 +236,7 @@ interface COCOData {
 ### Basic Implementation
 
 ```tsx
-import Canvas from '~/components/Canvas/Canvas';
+import Canvas from "~/components/Canvas/Canvas";
 
 function AnnotationApp() {
   return (
@@ -225,3 +268,8 @@ interface Class {
   color: string;
 }
 ```
+
+## Notes
+
+- The annotation tool is designed to enhance efficiency while ensuring accurate annotations.
+- Future improvements may refine collision detection and introduce additional functionalities based on user feedback.
