@@ -535,6 +535,8 @@ const Canvas = forwardRef(
                     if (index >= 0 && index < objects.length && objects[index]) {
                       objects[index].set("opacity", 0.6);
                       canvas.renderAll();
+                      // remove the last state
+                      historyRef.current.pop();
                     }
                   }}
                   onMouseLeave={() => {
@@ -545,6 +547,8 @@ const Canvas = forwardRef(
                     if (index >= 0 && index < objects.length && objects[index]) {
                       objects[index].set("opacity", 1);
                       canvas.renderAll();
+                      // remove the last state
+                      historyRef.current.pop();
                     }
                   }}
                   onClick={() => removeAnnotation(index)}
