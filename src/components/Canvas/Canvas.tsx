@@ -277,23 +277,8 @@ const Canvas = forwardRef(
       // 2) Check the last state's last object's type
       const lastObj = lastState.objects[lastState.objects.length - 1];
       const lastObjType = (lastObj as { type?: string })?.type;
-      console.log("aqui 0", lastObjType);
-      // 3) If removed object was a polygon, keep popping states until you find another polygon or path
-      if (lastObjType === "Polygon"|| lastObjType === "Line" || lastObjType === "Circle") {
-        console.log("aqui");
-        while (historyRef.current.length > 0) {
-          const peekState = historyRef.current[historyRef.current.length - 1];
-          if (!peekState?.objects?.length) break;
 
-          const peekObj = peekState.objects[peekState.objects.length - 1];
-          const peekObjType = (peekObj as { type?: string })?.type;
-
-          if (peekObjType === "Polygon" || peekObjType === "Path") {
-            break; // Stop popping as soon as we see a polygon or path
-          }
-          historyRef.current.pop();
-        }
-      }
+      
 
       // 4) Also remove the last annotation if it's a polygon or path
       if (lastObjType === "Polygon" || lastObjType === "Path") {
@@ -343,7 +328,7 @@ const Canvas = forwardRef(
     };
 
 
-    function removeLastLineAndCircle(canvas: FabricCanvas) {
+    function removeLastLineAndCircle(canvas: FabricCanvas): boolean {
       const lines = canvas.getObjects().filter((obj) => obj.type === "line");
       const circles = canvas.getObjects().filter((obj) => obj.type === "circle");
     
@@ -356,6 +341,10 @@ const Canvas = forwardRef(
         canvas.remove(circles[circles.length - 1]); // Remove the last circle
         currentPolygonPoints.current = [...currentPolygonPoints.current.slice(0, -1)];
       }
+      if(lines.length === 0 && circles.length === 0) {
+        return true;
+      }
+      return false;
     }
 
     // Remove temporary objects (lines/circles)
