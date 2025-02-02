@@ -269,19 +269,19 @@ const Canvas = forwardRef(
       // 5) Clear the canvas and load the now-top previous state
       clearCanvas();
 
-      // 3) Get the previous state
+      // 6) Get the previous state
       const prevState = historyRef.current[historyRef.current.length - 1];
       if (!prevState?.objects) {
         isRestoringState.current = false;
         return;
       }
 
-      // 4) Re-create objects on canvas
+      // 7) Re-create objects on canvas
       void util.enlivenObjects(prevState.objects).then((objs) => {
         objs.forEach((obj) => canvas.add(obj as FabricObject));
         canvas.renderAll();
 
-        // 5) Rebuild "annotations" by scanning the newly added objects
+        // 8) Rebuild "annotations" by scanning the newly added objects
         const newAnnotations: Annotation[] = [];
         for (const obj of canvas.getObjects()) {
           // Assume you store class info in obj.data?.class, and need .type to decide
@@ -298,7 +298,7 @@ const Canvas = forwardRef(
       });
     };
 
-    // 1) Remove temporary objects (lines/circles)
+   // Remove temporary objects (lines/circles)
     function removeTemporaryObjects(canvas: FabricCanvas) {
       const objectsToRemove = canvas
         .getObjects()
