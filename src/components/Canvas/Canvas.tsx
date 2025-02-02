@@ -23,14 +23,19 @@ import type { Class } from "~/Types/Class";
 import { Button } from "~/components/ui/button";
 import { FaTrash } from "react-icons/fa";
 import { hexToRgba } from "~/utils/colors";
-import { buildCOCOData, createCategoryMap, downloadJSONData, validateCOCO } from "~/utils/COCOUtils";
+import {
+  buildCOCOData,
+  createCategoryMap,
+  downloadJSONData,
+  validateCOCO,
+} from "~/utils/COCOUtils";
 import toast from "react-hot-toast";
 import { generateRandomId } from "~/utils/uuid";
 import { type Annotation, buildAnnotationsData } from "~/utils/COCOUtils";
 import { getClassFromColor } from "~/utils/classUtils";
 
 interface CanvasProps {
-  tool: "brush" | "polygon" | "eraser" |null;
+  tool: "brush" | "polygon" | "eraser" | null;
   brushSize: number;
   imageUrl: string | null;
   selectedClass: Class | null;
@@ -57,12 +62,17 @@ function setupBrushTool(
   brushSize: number,
   selectedClass: Class | null,
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>,
-  handlePathCreatedRef: React.MutableRefObject<((e: { path: Path }) => void) | undefined>,
+  handlePathCreatedRef: React.MutableRefObject<
+    ((e: { path: Path }) => void) | undefined
+  >,
 ) {
   canvas.isDrawingMode = true;
   canvas.freeDrawingBrush = new PencilBrush(canvas);
   canvas.freeDrawingBrush.width = brushSize;
-  canvas.freeDrawingBrush.color = hexToRgba(selectedClass?.color ?? "#000000", 0.35);
+  canvas.freeDrawingBrush.color = hexToRgba(
+    selectedClass?.color ?? "#000000",
+    0.35,
+  );
 
   const handlePathCreated = (e: { path: Path }) => {
     const pathObj = e.path;
@@ -89,13 +99,15 @@ function setupPolygonTool(
   currentPolygonPoints: React.MutableRefObject<Circle[]>,
   currentPolygonLines: React.MutableRefObject<Line[]>,
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>,
-  handleMouseDownRef: React.MutableRefObject<((opt: {e: TPointerEvent}) => void) | undefined>,
+  handleMouseDownRef: React.MutableRefObject<
+    ((opt: { e: TPointerEvent }) => void) | undefined
+  >,
   historyRef: React.MutableRefObject<CanvasState[]>,
   CLOSE_THRESHOLD = 10,
 ) {
   canvas.isDrawingMode = false;
 
-  const handleMouseDown = (options: {e: TPointerEvent}) => {
+  const handleMouseDown = (options: { e: TPointerEvent }) => {
     if (!selectedClass) {
       alert("Please select a class before drawing.");
       return;
@@ -119,12 +131,16 @@ function setupPolygonTool(
 
     // 2) Create line from previous circle
     if (currentPolygonPoints.current.length > 1) {
-      const previous = currentPolygonPoints.current[currentPolygonPoints.current.length - 2];
-      const line = new Line([previous?.left ?? 0, previous?.top ?? 0, circle.left, circle.top], {
-        stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
-        strokeWidth: 2,
-        selectable: false,
-      });
+      const previous =
+        currentPolygonPoints.current[currentPolygonPoints.current.length - 2];
+      const line = new Line(
+        [previous?.left ?? 0, previous?.top ?? 0, circle.left, circle.top],
+        {
+          stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+          strokeWidth: 2,
+          selectable: false,
+        },
+      );
       canvas.add(line);
       currentPolygonLines.current.push(line);
     }
@@ -142,17 +158,29 @@ function setupPolygonTool(
         currentPolygonPoints.current.pop();
 
         // add closing line
-        const prev = currentPolygonPoints.current[currentPolygonPoints.current.length - 1];
-        const closingLine = new Line([prev?.left ?? 0, prev?.top ?? 0, firstPt?.left ?? 0, firstPt?.top ?? 0], {
-          stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
-          strokeWidth: 2,
-          selectable: false,
-        });
+        const prev =
+          currentPolygonPoints.current[currentPolygonPoints.current.length - 1];
+        const closingLine = new Line(
+          [
+            prev?.left ?? 0,
+            prev?.top ?? 0,
+            firstPt?.left ?? 0,
+            firstPt?.top ?? 0,
+          ],
+          {
+            stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+            strokeWidth: 2,
+            selectable: false,
+          },
+        );
         canvas.add(closingLine);
         currentPolygonLines.current.push(closingLine);
 
         // create polygon
-        const polygonPoints = currentPolygonPoints.current.map((pt) => ({ x: pt.left, y: pt.top }));
+        const polygonPoints = currentPolygonPoints.current.map((pt) => ({
+          x: pt.left,
+          y: pt.top,
+        }));
         const polygon = new Polygon(polygonPoints, {
           fill: hexToRgba(selectedClass.color ?? "#f0f0f0", 0.35),
           stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
@@ -174,9 +202,7 @@ function setupPolygonTool(
           setTimeout(() => canvas.remove(polygon), 500);
           return;
         }
-        // remove the last states for polygon creation
-        historyRef.current.pop();
-        historyRef.current.pop();
+
         setAnnotations((prev) => [
           ...prev,
           { type: "polygon", class: selectedClass, object: polygon },
@@ -202,17 +228,23 @@ const Canvas = forwardRef(
     const [showAnnotationsOnTop, setShowAnnotationsOnTop] = useState(true);
     // References to event handlers so they can be removed
     const handleMouseDownRef = useRef<(options: fabric.IEvent) => void>();
-    const handlePathCreatedRef = useRef<(e: {path: Path}) => void>();
-   
+    const handlePathCreatedRef = useRef<(e: { path: Path }) => void>();
+
     const [showAnnotations, setShowAnnotations] = useState(false);
     const [imageId, setImageId] = useState<number | null>(null);
 
- 
     const saveCanvasState = () => {
       if (!mainCanvasRef.current || isRestoringState.current) return;
-
       const state = mainCanvasRef.current.toJSON() as CanvasState;
-      historyRef.current = [...historyRef.current, state];
+      for (const obj of state.objects) {
+        if (!getClassFromColor(classes, obj?.stroke as unknown as string)) {
+         return;
+        }
+      }
+      if (historyRef.current.length === 0 || 
+          state.objects.length !== historyRef.current[historyRef.current.length - 1]?.objects.length) {
+        historyRef.current = [...historyRef.current, state];
+      }
 
       // Keep only last 500 states
       if (historyRef.current.length > 500) {
@@ -229,41 +261,41 @@ const Canvas = forwardRef(
     const undo = () => {
       if (!mainCanvasRef.current || historyRef.current.length <= 1) return;
       isRestoringState.current = true;
-    
+
       const canvas = mainCanvasRef.current;
-    
+
       // 1) Pop the newest state
       const lastState = historyRef.current.pop();
       if (!lastState?.objects?.length) {
         isRestoringState.current = false;
         return;
       }
-    
+
       // 2) Check the last state's last object's type
       const lastObj = lastState.objects[lastState.objects.length - 1];
       const lastObjType = (lastObj as { type?: string })?.type;
-    
+
       // 3) If removed object was a polygon, keep popping states until you find another polygon or path
-      if (lastObjType === "Polygon") {
+      if (lastObjType === "Polygon"|| lastObjType === "Line" || lastObjType === "Circle") {
         while (historyRef.current.length > 0) {
           const peekState = historyRef.current[historyRef.current.length - 1];
           if (!peekState?.objects?.length) break;
-    
+
           const peekObj = peekState.objects[peekState.objects.length - 1];
           const peekObjType = (peekObj as { type?: string })?.type;
-    
+
           if (peekObjType === "Polygon" || peekObjType === "Path") {
             break; // Stop popping as soon as we see a polygon or path
           }
           historyRef.current.pop();
         }
       }
-    
+
       // 4) Also remove the last annotation if it's a polygon or path
       if (lastObjType === "Polygon" || lastObjType === "Path") {
         setAnnotations((prev) => prev.slice(0, -1));
       }
-    
+
       // 5) Clear the canvas and load the now-top previous state
       clearCanvas();
 
@@ -284,18 +316,30 @@ const Canvas = forwardRef(
         for (const obj of canvas.getObjects()) {
           // Assume you store class info in obj.data?.class, and need .type to decide
           if (obj.type === "polygon") {
-            newAnnotations.push({ type: "polygon", class:getClassFromColor(classes, obj?.stroke as string)!, object: obj });
+            newAnnotations.push({
+              type: "polygon",
+              class: getClassFromColor(classes, obj?.stroke as string)!,
+              object: obj,
+            });
           } else if (obj.type === "path") {
-            newAnnotations.push({ type: "path", class: getClassFromColor(classes, obj?.stroke as string )!, object: obj });
+            newAnnotations.push({
+              type: "path",
+              class: getClassFromColor(classes, obj?.stroke as string)!,
+              object: obj,
+            });
           }
         }
         setAnnotations(newAnnotations);
         // Undo is complete; resume saving states normally
         isRestoringState.current = false;
       });
+      if (canvas.getObjects().length === lastState.objects.length) {
+        undo();
+      }
+      const objects = canvas.getObjects();
     };
 
-   // Remove temporary objects (lines/circles)
+    // Remove temporary objects (lines/circles)
     function removeTemporaryObjects(canvas: FabricCanvas) {
       const objectsToRemove = canvas
         .getObjects()
@@ -311,8 +355,18 @@ const Canvas = forwardRef(
       }
       removeTemporaryObjects(canvas);
       const categoryMap = createCategoryMap(classes);
-      const annotationsData = buildAnnotationsData(annotations, categoryMap, imageId);
-      const cocoData = buildCOCOData(canvas, annotationsData, classes, categoryMap, imageId);
+      const annotationsData = buildAnnotationsData(
+        annotations,
+        categoryMap,
+        imageId,
+      );
+      const cocoData = buildCOCOData(
+        canvas,
+        annotationsData,
+        classes,
+        categoryMap,
+        imageId,
+      );
       const validation = validateCOCO(cocoData);
       if (!validation.success) {
         toast.error(validation.message);
@@ -433,7 +487,13 @@ const Canvas = forwardRef(
 
       // Set up tool
       if (tool === "brush") {
-        setupBrushTool(canvas, brushSize, selectedClass, setAnnotations, handlePathCreatedRef);
+        setupBrushTool(
+          canvas,
+          brushSize,
+          selectedClass,
+          setAnnotations,
+          handlePathCreatedRef,
+        );
       } else if (tool === "polygon") {
         setupPolygonTool(
           canvas,
@@ -498,7 +558,7 @@ const Canvas = forwardRef(
       if (index >= 0 && index < objects.length && objects[index]) {
         // Remove the object
         canvas.remove(objects[index]);
-        saveCanvasState()
+        saveCanvasState();
         canvas.renderAll();
       }
     };
@@ -530,11 +590,13 @@ const Canvas = forwardRef(
                     if (!canvas) return;
 
                     const objects = canvas.getObjects();
-                    if (index >= 0 && index < objects.length && objects[index]) {
+                    if (
+                      index >= 0 &&
+                      index < objects.length &&
+                      objects[index]
+                    ) {
                       objects[index].set("opacity", 0.6);
                       canvas.renderAll();
-                      // remove the last state
-                      historyRef.current.pop();
                     }
                   }}
                   onMouseLeave={() => {
@@ -542,11 +604,13 @@ const Canvas = forwardRef(
                     if (!canvas) return;
 
                     const objects = canvas.getObjects();
-                    if (index >= 0 && index < objects.length && objects[index]) {
+                    if (
+                      index >= 0 &&
+                      index < objects.length &&
+                      objects[index]
+                    ) {
                       objects[index].set("opacity", 1);
                       canvas.renderAll();
-                      // remove the last state
-                      historyRef.current.pop();
                     }
                   }}
                   onClick={() => removeAnnotation(index)}
