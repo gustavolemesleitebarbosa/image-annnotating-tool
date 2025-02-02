@@ -27,6 +27,7 @@ import { buildCOCOData, createCategoryMap, downloadJSONData, validateCOCO } from
 import toast from "react-hot-toast";
 import { generateRandomId } from "~/utils/uuid";
 import { type Annotation, buildAnnotationsData } from "~/utils/COCOUtils";
+import { getClassFromColor } from "~/utils/classUtils";
 
 interface CanvasProps {
   tool: "brush" | "polygon" | "eraser" |null;
@@ -70,6 +71,9 @@ function setupBrushTool(
       setTimeout(() => canvas.remove(pathObj), 500);
       return;
     }
+    pathObj.set("data", {
+      class: selectedClass,
+    });
     setAnnotations((prev) => [
       ...prev,
       { type: "path", class: selectedClass, object: pathObj },
@@ -170,6 +174,11 @@ function setupPolygonTool(
           setTimeout(() => canvas.remove(polygon), 500);
           return;
         }
+        
+        polygon.set("data", {
+          class: selectedClass,
+        });
+
         setAnnotations((prev) => [
           ...prev,
           { type: "polygon", class: selectedClass, object: polygon },
@@ -220,43 +229,46 @@ const Canvas = forwardRef(
     };
 
     const undo = () => {
-      if (!mainCanvasRef.current || historyRef.current.length <= 1) return;
-
-      isRestoringState.current = true;
-      clearCanvas();
-
-      // Remove current state
-      const lastState = historyRef.current.pop();
-      console.log(
-        "lastState",
-        lastState?.objects[lastState.objects.length - 1]?.type,
-      );
-
-      if (!lastState?.objects?.length) return;
-
-      const lastObj = lastState.objects[lastState.objects.length - 1];
-      const lastObjType = (lastObj as { type?: string })?.type;
-      if (lastObjType === "Path" || lastObjType === "Polygon") {
-        setAnnotations((prev) => prev.slice(0, -1));
+      if (!mainCanvasRef.current || historyRef.current.length <= 1) {
+        return;
       }
 
-      // Get previous state
-      const previousState = historyRef.current[historyRef.current.length - 1];
+      // Prevent saving new states while undoing
+      isRestoringState.current = true;
 
-      if (!previousState?.objects) {
-        console.log("No previous state objects found");
+      // 1) Remove the newest history state
+      historyRef.current.pop();
+
+      // 2) Clear the canvas
+      clearCanvas(); 
+      const canvas = mainCanvasRef.current;
+
+      // 3) Get the previous state
+      const prevState = historyRef.current[historyRef.current.length - 1];
+      if (!prevState?.objects) {
         isRestoringState.current = false;
         return;
       }
 
-      const canvas = mainCanvasRef.current;
-
-      // Restore objects using the imported util
-      void util.enlivenObjects(previousState.objects).then((objs) => {
-        objs.forEach((obj) => {
-          canvas.add(obj as FabricObject);
-        });
+      // 4) Re-create objects on canvas
+      void util.enlivenObjects(prevState.objects).then((objs) => {
+        objs.forEach((obj) => canvas.add(obj as fabric.FabricObject));
         canvas.renderAll();
+
+        // 5) Rebuild "annotations" by scanning the newly added objects
+        const newAnnotations: Annotation[] = [];
+        for (const obj of canvas.getObjects()) {
+          // Assume you store class info in obj.data?.class, and need .type to decide
+          if (obj.type === "polygon") {
+            newAnnotations.push({ type: "polygon", class:getClassFromColor(classes, obj.stroke), object: obj });
+          } else if (obj.type === "path") {
+            newAnnotations.push({ type: "path", class: getClassFromColor(classes, obj.stroke), object: obj });
+          }
+          // ... handle other object types if applicable ...
+        }
+        setAnnotations(newAnnotations);
+
+        // Undo is complete; resume saving states normally
         isRestoringState.current = false;
       });
     };
@@ -461,8 +473,10 @@ const Canvas = forwardRef(
       const objects = canvas.getObjects();
 
       if (index >= 0 && index < objects.length && objects[index]) {
+        // Remove the object
         canvas.remove(objects[index]);
-        canvas.renderAll(); // Ensure the canvas updates visually
+        saveCanvasState()
+        canvas.renderAll();
       }
     };
 
