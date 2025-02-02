@@ -337,7 +337,7 @@ export default function Home() {
             </div>
           )}
 
-          <h2 className="mb-4 mt-6 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
+          <h2 className="mb-4 mt-2 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
             Export
           </h2>
           <Button onClick={handleExport} className={buttonClass(false)}>
