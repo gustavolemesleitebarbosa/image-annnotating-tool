@@ -229,19 +229,45 @@ const Canvas = forwardRef(
     };
 
     const undo = () => {
-      if (!mainCanvasRef.current || historyRef.current.length <= 1) {
+      if (!mainCanvasRef.current || historyRef.current.length <= 1) return;
+      isRestoringState.current = true;
+    
+      const canvas = mainCanvasRef.current;
+    
+      // 1) Pop the newest state
+      const lastState = historyRef.current.pop();
+      if (!lastState?.objects?.length) {
+        isRestoringState.current = false;
         return;
       }
-
-      // Prevent saving new states while undoing
-      isRestoringState.current = true;
-
-      // 1) Remove the newest history state
-      historyRef.current.pop();
-
-      // 2) Clear the canvas
-      clearCanvas(); 
-      const canvas = mainCanvasRef.current;
+    
+      // 2) Check the last state's last object's type
+      const lastObj = lastState.objects[lastState.objects.length - 1];
+      const lastObjType = (lastObj as { type?: string })?.type;
+    
+      // 3) If removed object was a polygon, keep popping states until you find another polygon or path
+      if (lastObjType === "Polygon") {
+        while (historyRef.current.length > 0) {
+          const peekState = historyRef.current[historyRef.current.length - 1];
+          if (!peekState?.objects?.length) break;
+    
+          const peekObj = peekState.objects[peekState.objects.length - 1];
+          const peekObjType = (peekObj as { type?: string })?.type;
+    
+          if (peekObjType === "Polygon" || peekObjType === "Path") {
+            break; // Stop popping as soon as we see a polygon or path
+          }
+          historyRef.current.pop();
+        }
+      }
+    
+      // 4) Also remove the last annotation if it's a polygon or path
+      if (lastObjType === "Polygon" || lastObjType === "Path") {
+        setAnnotations((prev) => prev.slice(0, -1));
+      }
+    
+      // 5) Clear the canvas and load the now-top previous state
+      clearCanvas();
 
       // 3) Get the previous state
       const prevState = historyRef.current[historyRef.current.length - 1];
@@ -252,7 +278,7 @@ const Canvas = forwardRef(
 
       // 4) Re-create objects on canvas
       void util.enlivenObjects(prevState.objects).then((objs) => {
-        objs.forEach((obj) => canvas.add(obj as fabric.FabricObject));
+        objs.forEach((obj) => canvas.add(obj as FabricObject));
         canvas.renderAll();
 
         // 5) Rebuild "annotations" by scanning the newly added objects
@@ -260,11 +286,10 @@ const Canvas = forwardRef(
         for (const obj of canvas.getObjects()) {
           // Assume you store class info in obj.data?.class, and need .type to decide
           if (obj.type === "polygon") {
-            newAnnotations.push({ type: "polygon", class:getClassFromColor(classes, obj.stroke), object: obj });
+            newAnnotations.push({ type: "polygon", class:getClassFromColor(classes, obj?.stroke as string)!, object: obj });
           } else if (obj.type === "path") {
-            newAnnotations.push({ type: "path", class: getClassFromColor(classes, obj.stroke), object: obj });
+            newAnnotations.push({ type: "path", class: getClassFromColor(classes, obj?.stroke as string )!, object: obj });
           }
-          // ... handle other object types if applicable ...
         }
         setAnnotations(newAnnotations);
 
