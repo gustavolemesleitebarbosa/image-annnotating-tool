@@ -69,11 +69,9 @@ function setupBrushTool(
     if (checkCollision(canvas, pathObj)) {
       pathObj.set({ stroke: "red" });
       setTimeout(() => canvas.remove(pathObj), 500);
+      toast.error("Collision detected");
       return;
     }
-    pathObj.set("data", {
-      class: selectedClass,
-    });
     setAnnotations((prev) => [
       ...prev,
       { type: "path", class: selectedClass, object: pathObj },
@@ -92,6 +90,7 @@ function setupPolygonTool(
   currentPolygonLines: React.MutableRefObject<Line[]>,
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>,
   handleMouseDownRef: React.MutableRefObject<((opt: {e: TPointerEvent}) => void) | undefined>,
+  historyRef: React.MutableRefObject<CanvasState[]>,
   CLOSE_THRESHOLD = 10,
 ) {
   canvas.isDrawingMode = false;
@@ -170,15 +169,14 @@ function setupPolygonTool(
 
         // check overlap
         if (checkCollision(canvas, polygon)) {
+          toast.error("Collision detected");
           polygon.set({ stroke: "red" });
           setTimeout(() => canvas.remove(polygon), 500);
           return;
         }
-        
-        polygon.set("data", {
-          class: selectedClass,
-        });
-
+        // remove the last states for polygon creation
+        historyRef.current.pop();
+        historyRef.current.pop();
         setAnnotations((prev) => [
           ...prev,
           { type: "polygon", class: selectedClass, object: polygon },
@@ -216,9 +214,9 @@ const Canvas = forwardRef(
       const state = mainCanvasRef.current.toJSON() as CanvasState;
       historyRef.current = [...historyRef.current, state];
 
-      // Keep only last 50 states
-      if (historyRef.current.length > 50) {
-        historyRef.current = historyRef.current.slice(-50);
+      // Keep only last 500 states
+      if (historyRef.current.length > 500) {
+        historyRef.current = historyRef.current.slice(-500);
       }
       console.log("Saved state, total states:", historyRef.current.length);
     };
@@ -292,7 +290,6 @@ const Canvas = forwardRef(
           }
         }
         setAnnotations(newAnnotations);
-
         // Undo is complete; resume saving states normally
         isRestoringState.current = false;
       });
@@ -444,7 +441,8 @@ const Canvas = forwardRef(
           currentPolygonPoints,
           currentPolygonLines,
           setAnnotations,
-          handleMouseDownRef
+          handleMouseDownRef,
+          historyRef,
         );
       } else {
         // default / eraser
