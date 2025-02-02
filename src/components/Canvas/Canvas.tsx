@@ -260,9 +260,17 @@ const Canvas = forwardRef(
     };
 
     const undo = () => {
-      removeLastLineAndCircle(mainCanvasRef.current);
+      if(!mainCanvasRef.current) return;
+      
+      // Always try to remove lines and circles of unfinished polygon
+      const lines = mainCanvasRef.current?.getObjects().filter((obj) => obj.type === "line");
+      const circles = mainCanvasRef.current?.getObjects().filter((obj) => obj.type === "circle");
+      if(lines?.length > 0 || circles?.length > 0) {
+        removeLastLineAndCircle(mainCanvasRef.current , lines as Line[], circles as Circle[]);
+        return;
+      }
 
-      if (!mainCanvasRef.current || historyRef.current.length <= 1) return;
+      if (historyRef.current.length <= 1) return;
       isRestoringState.current = true;
 
       const canvas = mainCanvasRef.current;
@@ -278,8 +286,7 @@ const Canvas = forwardRef(
       const lastObj = lastState.objects[lastState.objects.length - 1];
       const lastObjType = (lastObj as { type?: string })?.type;
 
-      
-
+    
       // 4) Also remove the last annotation if it's a polygon or path
       if (lastObjType === "Polygon" || lastObjType === "Path") {
         setAnnotations((prev) => prev.slice(0, -1));
@@ -327,18 +334,14 @@ const Canvas = forwardRef(
       }
     };
 
-
-    function removeLastLineAndCircle(canvas: FabricCanvas): boolean {
-      const lines = canvas.getObjects().filter((obj) => obj.type === "line");
-      const circles = canvas.getObjects().filter((obj) => obj.type === "circle");
-    
+    function removeLastLineAndCircle(canvas: FabricCanvas, lines: Line[], circles: Circle[]): boolean {
       if (lines.length > 0) {
-        canvas.remove(lines[lines.length - 1]); // Remove the last line
+        canvas.remove(lines[lines.length - 1] as unknown as Line); // Remove the last line
         currentPolygonLines.current = [...currentPolygonLines.current.slice(0, -1)];
       }
     
       if (circles.length > 0) {
-        canvas.remove(circles[circles.length - 1]); // Remove the last circle
+        canvas.remove(circles[circles.length - 1] as unknown as Circle); // Remove the last circle
         currentPolygonPoints.current = [...currentPolygonPoints.current.slice(0, -1)];
       }
       if(lines.length === 0 && circles.length === 0) {
