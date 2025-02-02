@@ -237,13 +237,19 @@ const Canvas = forwardRef(
       if (!mainCanvasRef.current || isRestoringState.current) return;
       console.log("saveCanvasState", mainCanvasRef.current.getObjects().length);
       const state = mainCanvasRef.current.toJSON() as CanvasState;
+
+      // Check if all objects have a valid class before saving
       for (const obj of state.objects) {
         if (!getClassFromColor(classes, obj?.stroke as unknown as string)) {
-         return;
+          return;
         }
       }
-      if (historyRef.current.length === 0 || 
-          state.objects.length !== historyRef.current[historyRef.current.length - 1]?.objects.length) {
+      // Check if the state is different from the last state and if the state is not empty to update history
+      if (
+        historyRef.current.length === 0 ||
+        state.objects.length !==
+          historyRef.current[historyRef.current.length - 1]?.objects.length
+      ) {
         historyRef.current = [...historyRef.current, state];
       }
 
@@ -260,20 +266,31 @@ const Canvas = forwardRef(
     };
 
     const undo = () => {
-      if(!mainCanvasRef.current) return;
-      
+      if (!mainCanvasRef.current) return;
+      const canvas = mainCanvasRef.current;
+
       // Always try to remove lines and circles of unfinished polygon
-      const lines = mainCanvasRef.current?.getObjects().filter((obj) => obj.type === "line");
-      const circles = mainCanvasRef.current?.getObjects().filter((obj) => obj.type === "circle");
-      if(lines?.length > 0 || circles?.length > 0) {
-        removeLastLineAndCircle(mainCanvasRef.current , lines as Line[], circles as Circle[]);
+      const lines = mainCanvasRef.current
+        ?.getObjects()
+        .filter((obj) => obj.type === "line");
+      const circles = mainCanvasRef.current
+        ?.getObjects()
+        .filter((obj) => obj.type === "circle");
+      if (lines?.length > 0 || circles?.length > 0) {
+        removeLastLineAndCircle(
+          mainCanvasRef.current,
+          lines as Line[],
+          circles as Circle[],
+        );
+        return;
+      }
+      // if the canvas is empty, do nothing
+      if (canvas.getObjects().length === 0) {
         return;
       }
 
       if (historyRef.current.length <= 1) return;
       isRestoringState.current = true;
-
-      const canvas = mainCanvasRef.current;
 
       // 1) Pop the newest state
       const lastState = historyRef.current.pop();
@@ -286,8 +303,7 @@ const Canvas = forwardRef(
       const lastObj = lastState.objects[lastState.objects.length - 1];
       const lastObjType = (lastObj as { type?: string })?.type;
 
-    
-      // 4) Also remove the last annotation if it's a polygon or path
+      // 4)  Remove the last annotation if it's a polygon or path
       if (lastObjType === "Polygon" || lastObjType === "Path") {
         setAnnotations((prev) => prev.slice(0, -1));
       }
@@ -329,22 +345,32 @@ const Canvas = forwardRef(
         // Undo is complete; resume saving states normally
         isRestoringState.current = false;
       });
+
+      // if for some reason the undo failed, try again
       if (canvas.getObjects().length === lastState.objects.length) {
         undo();
       }
     };
 
-    function removeLastLineAndCircle(canvas: FabricCanvas, lines: Line[], circles: Circle[]): boolean {
+    function removeLastLineAndCircle(
+      canvas: FabricCanvas,
+      lines: Line[],
+      circles: Circle[],
+    ): boolean {
       if (lines.length > 0) {
         canvas.remove(lines[lines.length - 1] as unknown as Line); // Remove the last line
-        currentPolygonLines.current = [...currentPolygonLines.current.slice(0, -1)];
+        currentPolygonLines.current = [
+          ...currentPolygonLines.current.slice(0, -1),
+        ];
       }
-    
+
       if (circles.length > 0) {
         canvas.remove(circles[circles.length - 1] as unknown as Circle); // Remove the last circle
-        currentPolygonPoints.current = [...currentPolygonPoints.current.slice(0, -1)];
+        currentPolygonPoints.current = [
+          ...currentPolygonPoints.current.slice(0, -1),
+        ];
       }
-      if(lines.length === 0 && circles.length === 0) {
+      if (lines.length === 0 && circles.length === 0) {
         return true;
       }
       return false;
@@ -413,7 +439,7 @@ const Canvas = forwardRef(
       // Save state only when user finishes drawing
       canvas.on("after:render", () => {
         if (!isRestoringState.current) {
-          console.log('rende hre')
+          console.log("rende hre");
           saveCanvasState();
         }
       });
