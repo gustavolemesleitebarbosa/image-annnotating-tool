@@ -2,6 +2,8 @@
 
 A React-based web application for annotating images with support for brush and polygon tools. The tool exports annotations in COCO format and features a customizable class system.
 
+[Demo Video](https://youtu.be/K0r6AQVgHpM)
+
 ## Features
 
 - 🎨 Multiple annotation tools:
@@ -142,7 +144,7 @@ To begin using the annotation tool:
   - Collision detection is based on **bounding boxes**, meaning that even if two annotations do not actually intersect, they may still be flagged as a collision.
   - This limitation is due to Fabric.js not offering a straightforward way to detect precise intersection beyond bounding box checks.
   - For more information on this limitation, see this [Stack Overflow thread](https://stackoverflow.com/questions/23258284/collision-detection-fabrics-js).
-  - If the current collision detection implementation does not meet your expectations, you can switch to a branch of this project that does not include collision testing. However, please note that in this version, annotations can overlap freely. It is entirely the user's responsibility to manage and avoid annotation overlaps. To access it, just run on terminal:``` git checkout branch-collision-free  ```
+  - If the current collision detection implementation does not meet your expectations, you can switch to a branch of this project that does not include collision testing. However, please note that in this version, annotations can overlap freely. It is entirely the user's responsibility to manage and avoid annotation overlaps. To access it, just run on terminal:``` git checkout branch-collision-free  ```, there is a separate demo video for this version: [Demo Video, non collision mode](https://youtu.be/hc6wzxYo5DQ)
 
 
 
