@@ -159,7 +159,7 @@ export default function Home() {
     };
 
     const updatedClasses = [...classes, newClass];
-    setClasses(updatedClasses);
+    setClasses((prevClasses) => [...prevClasses, newClass]);
     localStorage.setItem("classes", JSON.stringify(updatedClasses));
     setNewClassName("");
     setNewClassColor("#ff0000");

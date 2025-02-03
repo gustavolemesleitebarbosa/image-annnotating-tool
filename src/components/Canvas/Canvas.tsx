@@ -23,7 +23,7 @@ import {
 import type { Class } from "~/Types/Class";
 import { Button } from "~/components/ui/button";
 import { FaTrash } from "react-icons/fa";
-import { hexToRgba } from "~/utils/colors";
+import { getAlpha, hexToRgba } from "~/utils/colors";
 import {
   buildCOCOData,
   createCategoryMap,
@@ -72,7 +72,7 @@ function setupBrushTool(
   canvas.freeDrawingBrush.width = brushSize;
   canvas.freeDrawingBrush.color = hexToRgba(
     selectedClass?.color ?? "#000000",
-    0.35,
+    CONTENT_OPACITY,
   );
 
   const handlePathCreated = (e: { path: Path }) => {
@@ -119,7 +119,10 @@ function setupPolygonTool(
       left: pointer.x,
       top: pointer.y,
       radius: 3,
-      fill: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+      fill: hexToRgba(
+        selectedClass.color ?? "#000000",
+        POLYGON_OUTLINE_OPACITY,
+      ),
       stroke: "#ffffff",
       strokeWidth: 1,
       selectable: false,
@@ -136,7 +139,10 @@ function setupPolygonTool(
       const line = new Line(
         [previous?.left ?? 0, previous?.top ?? 0, circle.left, circle.top],
         {
-          stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+          stroke: hexToRgba(
+            selectedClass.color ?? "#000000",
+            POLYGON_OUTLINE_OPACITY,
+          ),
           strokeWidth: 2,
           selectable: false,
         },
@@ -168,7 +174,10 @@ function setupPolygonTool(
             firstPt?.top ?? 0,
           ],
           {
-            stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+            stroke: hexToRgba(
+              selectedClass.color ?? "#000000",
+              POLYGON_OUTLINE_OPACITY,
+            ),
             strokeWidth: 2,
             selectable: false,
           },
@@ -182,8 +191,11 @@ function setupPolygonTool(
           y: pt.top,
         }));
         const polygon = new Polygon(polygonPoints, {
-          fill: hexToRgba(selectedClass.color ?? "#f0f0f0", 0.35),
-          stroke: hexToRgba(selectedClass.color ?? "#000000", 0.8),
+          fill: hexToRgba(selectedClass.color ?? "#f0f0f0", CONTENT_OPACITY),
+          stroke: hexToRgba(
+            selectedClass.color ?? "#000000",
+            POLYGON_OUTLINE_OPACITY,
+          ),
           strokeWidth: 2,
           selectable: false,
         });
@@ -216,6 +228,9 @@ function setupPolygonTool(
   canvas.on("mouse:down", handleMouseDown);
 }
 
+const CONTENT_OPACITY = 0.35;
+const POLYGON_OUTLINE_OPACITY = 0.8;
+
 const Canvas = forwardRef(
   ({ tool, brushSize, imageUrl, selectedClass, classes }: CanvasProps, ref) => {
     const mainCanvasRef = useRef<FabricCanvas>();
@@ -237,12 +252,22 @@ const Canvas = forwardRef(
       if (!mainCanvasRef.current || isRestoringState.current) return;
       const state = mainCanvasRef.current.toJSON() as CanvasState;
 
-      // Check if all objects have a valid class before saving
+      // Check if all objects are valid before saving
       for (const obj of state.objects) {
-        if (!getClassFromColor(classes, obj?.stroke as unknown as string)) {
+        const fillColor = typeof obj.fill === "string" ? obj.fill : "";
+        const strokeColor = typeof obj.stroke === "string" ? obj.stroke : "";
+      
+        const acceptedTypes =
+          // @ts-expect-errorts-ignore this line
+          obj?.type === "Polygon" && getAlpha(fillColor) === CONTENT_OPACITY ||
+          // @ts-expect-errorts-ignore this line
+          obj?.type === "Path" && getAlpha(strokeColor) === CONTENT_OPACITY;
+      
+        if (!acceptedTypes) {
           return;
         }
       }
+      
       // Check if the state is different from the last state and if the state is not empty to update history
       if (
         historyRef.current.length === 0 ||
@@ -256,7 +281,7 @@ const Canvas = forwardRef(
       if (historyRef.current.length > 500) {
         historyRef.current = historyRef.current.slice(-500);
       }
-    }, [classes]);
+    }, []);
 
     const clearCanvas = useCallback(() => {
       if (!mainCanvasRef.current) return;

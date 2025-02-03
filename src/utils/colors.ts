@@ -10,3 +10,13 @@ export function hexToRgba(hex: string, alpha: number) {
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+
+export function getAlpha(rgba: string): number | null {
+  const match = /rgba?\(\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)/.exec(rgba);
+  if (match) {
+    // @ts-expect-errorts-ignore this line
+    return parseFloat(match[1]); // Convert to float
+  }
+  return null; // Return null if there's no match
+}
