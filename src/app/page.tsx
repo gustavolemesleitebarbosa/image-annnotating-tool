@@ -88,13 +88,14 @@ export default function Home() {
   // State for collapsible sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const [tool, setTool] = useState<"brush" | "polygon" | null >(null);
+  const [tool, setTool] = useState<"brush" | "polygon" | null>(null);
   const [brushSize, setBrushSize] = useState(10);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [newClassName, setNewClassName] = useState<string>("");
   const [newClassColor, setNewClassColor] = useState<string>("#ff0000");
   const [classes, setClasses] = useState<Class[]>(() => getInitialClasses());
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<{
     undo: () => void;
@@ -132,7 +133,9 @@ export default function Home() {
   };
 
   const handleAddClass = () => {
-    const previousTakenColors = classes.map((classElement) => classElement.color);
+    const previousTakenColors = classes.map(
+      (classElement) => classElement.color,
+    );
 
     if (!newClassName || !newClassColor) {
       toast.error("Please fill in both name and color");
@@ -142,7 +145,9 @@ export default function Home() {
       toast.error("Color already taken");
       return;
     }
-    if (classes.some((c) => c.name.toLowerCase() === newClassName.toLowerCase())) {
+    if (
+      classes.some((c) => c.name.toLowerCase() === newClassName.toLowerCase())
+    ) {
       toast.error("Class name already exists");
       return;
     }
@@ -158,6 +163,7 @@ export default function Home() {
     localStorage.setItem("classes", JSON.stringify(updatedClasses));
     setNewClassName("");
     setNewClassColor("#ff0000");
+    setIsDialogOpen(false);
     toast.success(`Class "${newClassName}" added successfully!`);
   };
 
@@ -182,14 +188,14 @@ export default function Home() {
   `;
 
   return (
-    <div className="flex h-screen w-screen flex-col relative">
+    <div className="relative flex h-screen w-screen flex-col">
       <Toaster position="top-right" />
 
       {/* Toggle button (visible on small/medium screens) */}
       {!isSidebarOpen && (
         <button
-        className="md:hidden absolute top-1/2 left-2 transform -translate-y-1/2 z-50 bg-gray-800 text-white p-2 rounded"
-        onClick={() => setIsSidebarOpen(true)}
+          className="absolute left-2 top-1/2 z-50 -translate-y-1/2 transform rounded bg-gray-800 p-2 text-white md:hidden"
+          onClick={() => setIsSidebarOpen(true)}
         >
           <FaChevronRight />
         </button>
@@ -198,25 +204,25 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar container */}
         <div
-          className={`
-            flex flex-col bg-white p-4 shadow-2xl
-            md:relative absolute top-0 h-full z-40
-            transition-transform duration-300
-            ${isSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 md:translate-x-0 md:w-64"}
-          `}
+          className={`absolute top-0 z-40 flex h-full flex-col bg-white p-4 shadow-2xl transition-transform duration-300 md:relative ${isSidebarOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full md:w-64 md:translate-x-0"} `}
         >
           {/* Hide the sidebar close button on larger screens */}
           <button
-            className="md:hidden mb-2 self-end font-bold border border-black bg-gray-300 hover:bg-gray-400 text-black rounded-full h-8 w-8"
+            className="mb-2 h-8 w-8 self-end rounded-full border border-black bg-gray-300 font-bold text-black hover:bg-gray-400 md:hidden"
             onClick={() => setIsSidebarOpen(false)}
           >
             X
           </button>
 
-          <h2 className="mb-4 text-xs text-sm font-bold md:text-lg">Classes</h2>
-          <Dialog>
+          <h2 className="mb-4 text-sm text-xs font-bold md:text-lg">Classes</h2>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className={buttonClass(false)}>Add a new Class</Button>
+              <Button
+                className={buttonClass(false)}
+                onClick={() => setIsDialogOpen(true)}
+              >
+                Add a new Class
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -228,9 +234,7 @@ export default function Home() {
                   <Input
                     id="name"
                     value={newClassName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setNewClassName(e.target.value)
-                    }
+                    onChange={(e) => setNewClassName(e.target.value)}
                     placeholder="Enter class name"
                   />
                 </div>
@@ -240,9 +244,7 @@ export default function Home() {
                     <Input
                       id="color"
                       value={newClassColor}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setNewClassColor(e.target.value)
-                      }
+                      onChange={(e) => setNewClassColor(e.target.value)}
                       placeholder="#000000"
                     />
                     <ColorPicker
@@ -323,7 +325,7 @@ export default function Home() {
 
           {tool === "brush" && (
             <div className="mt-4">
-              <label className="mb-2 block md:text-sm text-xs font-medium">
+              <label className="mb-2 block text-xs font-medium md:text-sm">
                 {tool === "brush" ? "Brush" : "Eraser"} Size: {brushSize}px
               </label>
               <input
@@ -347,9 +349,7 @@ export default function Home() {
         </div>
 
         {/* Main canvas container with safe-area padding */}
-        <div
-          className="relaxtive flex-1 overflow-hidden"
-        >
+        <div className="relaxtive flex-1 overflow-hidden">
           <Canvas
             ref={canvasRef}
             tool={tool}

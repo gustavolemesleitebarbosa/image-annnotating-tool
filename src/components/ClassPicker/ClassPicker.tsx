@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Select, {
   type StylesConfig,
   type GroupBase,
@@ -8,37 +8,30 @@ import Select, {
 } from "react-select";
 import { type Class } from "~/Types/Class";
 
-// Custom Option Component
-const CustomOption = (props: any) => {
-  return (
-    <components.Option {...props}>
-      <div className="flex justify-between items-center">
-        <span className="w-4/5">{props.data.name}</span>
-        <div
-          className="h-4 w-4 rounded-full"
-          style={{ backgroundColor: props.data.color }}
-        />
-      </div>
-    </components.Option>
-  );
-};
+const CustomOption = (props: any) => (
+  <components.Option {...props}>
+    <div className="flex justify-between items-center">
+      <span className="w-4/5">{props.data.name}</span>
+      <div
+        className="h-4 w-4 rounded-full"
+        style={{ backgroundColor: props.data.color }}
+      />
+    </div>
+  </components.Option>
+);
 
-// Custom SingleValue Component
-const CustomSingleValue = (props: any) => {
-  return (
-    <components.SingleValue {...props}>
-      <div className="flex justify-between items-center">
-        <span>{props.data.name}</span>
-        <div
-          className="h-4 w-4 rounded-full"
-          style={{ backgroundColor: props.data.color }}
-        />
-      </div>
-    </components.SingleValue>
-  );
-};
+const CustomSingleValue = (props: any) => (
+  <components.SingleValue {...props}>
+    <div className="flex justify-between items-center">
+      <span>{props.data.name}</span>
+      <div
+        className="h-4 w-4 rounded-full"
+        style={{ backgroundColor: props.data.color }}
+      />
+    </div>
+  </components.SingleValue>
+);
 
-// Main Component
 const ClassPicker = ({
   classes,
   onClassSelect,
@@ -49,6 +42,20 @@ const ClassPicker = ({
   selectedClass: Class | null;
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const customStyles: StylesConfig<Class, false, GroupBase<Class>> = {
     control: (baseStyles: CSSObjectWithLabel): CSSObjectWithLabel => ({
@@ -89,11 +96,11 @@ const ClassPicker = ({
     if (onClassSelect) {
       onClassSelect(newValue);
     }
-    setMenuOpen(false); // Close menu after selection
+    setMenuOpen(false);
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={pickerRef}>
       <button
         className="w-full border border-gray-300 p-2 rounded bg-white flex justify-between items-center"
         onClick={() => setMenuOpen((prev) => !prev)}
