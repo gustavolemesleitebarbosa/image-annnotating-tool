@@ -103,7 +103,6 @@ function setupPolygonTool(
   handleMouseDownRef: React.MutableRefObject<
     ((opt: { e: TPointerEvent }) => void) | undefined
   >,
-  historyRef: React.MutableRefObject<CanvasState[]>,
   CLOSE_THRESHOLD = 10,
 ) {
   canvas.isDrawingMode = false;
@@ -236,7 +235,6 @@ const Canvas = forwardRef(
 
     const saveCanvasState = useCallback(() => {
       if (!mainCanvasRef.current || isRestoringState.current) return;
-      console.log("saveCanvasState", mainCanvasRef.current.getObjects().length);
       const state = mainCanvasRef.current.toJSON() as CanvasState;
 
       // Check if all objects have a valid class before saving
@@ -258,7 +256,6 @@ const Canvas = forwardRef(
       if (historyRef.current.length > 500) {
         historyRef.current = historyRef.current.slice(-500);
       }
-      console.log("Saved state, total states:", historyRef.current.length);
     }, [classes]);
 
     const clearCanvas = useCallback(() => {
@@ -407,7 +404,6 @@ const Canvas = forwardRef(
       const validation = validateCOCO(cocoData);
       if (!validation.success) {
         toast.error(validation.message);
-        console.log(validation.details);
         return;
       }
       toast.success("COCO data is valid");
@@ -439,7 +435,6 @@ const Canvas = forwardRef(
       // Save state only when user finishes drawing
       canvas.on("after:render", () => {
         if (!isRestoringState.current) {
-          console.log("rende hre");
           saveCanvasState();
         }
       });
@@ -540,7 +535,6 @@ const Canvas = forwardRef(
           currentPolygonLines,
           setAnnotations,
           handleMouseDownRef,
-          historyRef,
         );
       } else {
         // default / eraser
