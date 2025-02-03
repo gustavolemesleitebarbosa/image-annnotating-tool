@@ -182,7 +182,7 @@ export default function Home() {
   };
 
   const buttonClass = (isActive: boolean) => `
-    w-full flex items-center justify-center rounded text-xs md:text-sm h-8 md:h-12
+    w-full flex items-center justify-center rounded text-xs md:text-sm h-7 md:h-10
     ${isActive ? "bg-black text-white" : "bg-gray-300 text-black"} 
     hover:bg-[#a2c2dc]
   `;
@@ -202,7 +202,6 @@ export default function Home() {
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar container */}
         <div
           className={`absolute top-0 z-40 flex h-full flex-col bg-white p-4 shadow-2xl transition-transform duration-300 md:relative ${isSidebarOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full md:w-64 md:translate-x-0"} `}
         >
@@ -214,7 +213,7 @@ export default function Home() {
             X
           </button>
 
-          <h2 className="mb-4 text-sm text-xs font-bold md:text-lg">Classes</h2>
+          <h2 className="mt-0 mb-4 text-sm text-xs font-bold md:text-lg">Classes</h2>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button
