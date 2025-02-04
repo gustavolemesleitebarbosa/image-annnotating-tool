@@ -372,7 +372,6 @@ const Canvas = forwardRef(
         // 8) Rebuild "annotations" by scanning the newly added objects
         const newAnnotations: Annotation[] = [];
         for (const obj of canvas.getObjects()) {
-          // Assume you store class info in obj.data?.class, and need .type to decide
           if (obj.type === "polygon") {
             newAnnotations.push({
               type: "polygon",
