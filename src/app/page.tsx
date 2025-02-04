@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect } from "react";
 import ColorPicker from "~/components/ColorPicker/ColorPicker";
 import { type Class } from "~/Types/Class";
 import ClassPicker from "~/components/ClassPicker/ClassPicker";
