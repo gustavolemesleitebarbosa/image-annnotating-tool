@@ -5,10 +5,11 @@ import Select, {
   type CSSObjectWithLabel,
   components,
   type SingleValue,
+  type OptionProps,
 } from "react-select";
 import { type Class } from "~/Types/Class";
 
-const CustomOption = (props: any) => (
+const CustomOption = (props: {data: Class} & OptionProps<Class, false, GroupBase<Class>>) => (
   <components.Option {...props}>
     <div className="flex justify-between items-center">
       <span className="w-4/5">{props.data.name}</span>
@@ -20,7 +21,7 @@ const CustomOption = (props: any) => (
   </components.Option>
 );
 
-const CustomSingleValue = (props: any) => (
+const CustomSingleValue =  (props: {data: Class} & OptionProps<Class, false, GroupBase<Class>>) => (
   <components.SingleValue {...props}>
     <div className="flex justify-between items-center">
       <span>{props.data.name}</span>
