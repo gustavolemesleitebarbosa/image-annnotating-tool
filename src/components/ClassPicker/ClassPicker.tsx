@@ -121,6 +121,7 @@ const ClassPicker = ({
             styles={customStyles}
             components={{
               Option: CustomOption,
+              // @ts-expect-error in order to use the same component for both Option and SingleValue
               SingleValue: CustomSingleValue,
             }}
             placeholder="Select a class"
