@@ -57,7 +57,7 @@ const initialClasses: Class[] = [
   {
     id: generateRandomId(),
     name: "Sidewalk",
-    color: "#808080",
+    color: "#808082",
   },
   {
     id: generateRandomId(),
