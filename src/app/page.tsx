@@ -224,11 +224,11 @@ export default function Home() {
                   Add a new Class
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add New Class</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
                   <div className="grid gap-2">
                     <label htmlFor="name">Class Name</label>
                     <Input
