@@ -15,7 +15,6 @@ A React-based web application for annotating images with support for brush and p
 - 👁️ Toggle annotation visibility
 - 📊 Annotation management interface
 - 🖼️ Support for various image formats
-- 💫 Collision detection between annotations
 
 ## Setup Instructions
 
@@ -82,13 +81,11 @@ Default classes include common objects like "Car", "Tree", "Road", etc. New clas
 - Freeform drawing
 - Adjustable brush size
 - Semi-transparent fill
-- Collision detection
 
 #### Polygon Tool
 
 - Click to place points
 - Auto-closes when near starting point
-- Collision detection
 - Clear visual feedback
 
 ### 3. COCO Export
@@ -138,16 +135,6 @@ To begin using the annotation tool:
   - Clicking an annotation in the list removes it from the canvas.
   - To export annotations in **COCO format**, click the **Export COCO** button. This generates a JSON file containing the annotations.
 
-## Collision Detection
-
-  - The app includes a collision detection system to prevent overlapping annotations.
-  - Collision detection is based on **bounding boxes**, meaning that even if two annotations do not actually intersect, they may still be flagged as a collision.
-  - This limitation is due to Fabric.js not offering a straightforward way to detect precise intersection beyond bounding box checks.
-  - For more information on this limitation, see this [Stack Overflow thread](https://stackoverflow.com/questions/23258284/collision-detection-fabrics-js).
-  - If the current collision detection implementation does not meet your expectations, you can switch to a branch of this project that does not include collision testing. However, please note that in this version, annotations can overlap freely. It is entirely the user's responsibility to manage and avoid annotation overlaps. To access it, just run on terminal:``` git checkout branch-collision-free  ```, there is a separate demo video for this version: [Demo Video, non collision mode](https://youtu.be/hc6wzxYo5DQ)
-
-
-
 ## Best Practices
 
 1. **Performance**
@@ -171,19 +158,13 @@ To begin using the annotation tool:
 
 Common issues and solutions:
 
-1. **Collision Detection**
-
-   - Red highlight indicates overlap
-   - Annotation is automatically removed
-   - Try repositioning or using smaller brush size
-
-2. **Polygon Tool**
+1. **Polygon Tool**
 
    - Ensure points are placed accurately
    - Click near starting point to close
    - Use undo for mistakes
 
-3. **Export Issues**
+2. **Export Issues**
    - Verify all annotations are complete
    - Check class assignments
    - Ensure image is loaded properly

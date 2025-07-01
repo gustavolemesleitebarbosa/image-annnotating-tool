@@ -49,13 +49,6 @@ type CanvasState = {
   background: string;
 };
 
-// -- Helper to check collision for brush/polygon
-function checkCollision(canvas: FabricCanvas, newObject: FabricObject) {
-  return canvas.getObjects().some((obj) => {
-    if (obj === newObject) return false;
-    return obj.intersectsWithObject(newObject);
-  });
-}
 
 // -- Setup "brush" tool
 function setupBrushTool(
@@ -77,12 +70,7 @@ function setupBrushTool(
 
   const handlePathCreated = (e: { path: Path }) => {
     const pathObj = e.path;
-    if (checkCollision(canvas, pathObj)) {
-      pathObj.set({ stroke: "red" });
-      setTimeout(() => canvas.remove(pathObj), 500);
-      toast.error("Collision detected");
-      return;
-    }
+
     setAnnotations((prev) => [
       ...prev,
       { type: "path", class: selectedClass, object: pathObj },
@@ -207,13 +195,6 @@ function setupPolygonTool(
         currentPolygonPoints.current = [];
         currentPolygonLines.current = [];
 
-        // check overlap
-        if (checkCollision(canvas, polygon)) {
-          toast.error("Collision detected");
-          polygon.set({ stroke: "red" });
-          setTimeout(() => canvas.remove(polygon), 500);
-          return;
-        }
 
         setAnnotations((prev) => [
           ...prev,
