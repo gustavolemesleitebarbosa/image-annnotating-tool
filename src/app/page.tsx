@@ -203,7 +203,7 @@ export default function Home() {
 
       <div className="flex flex-1 overflow-hidden">
         <div
-          className={`absolute top-0 z-40 flex h-full flex-col bg-white p-4 shadow-2xl transition-transform duration-300 md:relative ${isSidebarOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full md:w-64 md:translate-x-0"} `}
+          className={`absolute top-0 z-40 flex h-full flex-col bg-white p-4 shadow-2xl transition-transform duration-300 overflow-y-auto md:relative ${isSidebarOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full md:w-64 md:translate-x-0"} `}
         >
           {/* Hide the sidebar close button on larger screens */}
           <button
@@ -213,138 +213,140 @@ export default function Home() {
             X
           </button>
 
-          <h2 className="mt-0 mb-4 text-sm text-xs font-bold md:text-lg">Classes</h2>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                className={buttonClass(false)}
-                onClick={() => setIsDialogOpen(true)}
-              >
-                Add a new Class
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Class</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <label htmlFor="name">Class Name</label>
-                  <Input
-                    id="name"
-                    value={newClassName}
-                    onChange={(e) => setNewClassName(e.target.value)}
-                    placeholder="Enter class name"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <label htmlFor="color">Class Color</label>
-                  <div className="relative">
+          <div className="flex-1 overflow-y-auto">
+            <h2 className="mt-0 mb-4 text-sm text-xs font-bold md:text-lg">Classes</h2>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className={buttonClass(false)}
+                  onClick={() => setIsDialogOpen(true)}
+                >
+                  Add a new Class
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Class</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <label htmlFor="name">Class Name</label>
                     <Input
-                      id="color"
-                      value={newClassColor}
-                      onChange={(e) => setNewClassColor(e.target.value)}
-                      placeholder="#000000"
-                    />
-                    <ColorPicker
-                      color={newClassColor}
-                      initialColor={newClassColor || "#ff0000"}
-                      onChange={setNewClassColor}
+                      id="name"
+                      value={newClassName}
+                      onChange={(e) => setNewClassName(e.target.value)}
+                      placeholder="Enter class name"
                     />
                   </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="color">Class Color</label>
+                    <div className="relative">
+                      <Input
+                        id="color"
+                        value={newClassColor}
+                        onChange={(e) => setNewClassColor(e.target.value)}
+                        placeholder="#000000"
+                      />
+                      <ColorPicker
+                        color={newClassColor}
+                        initialColor={newClassColor || "#ff0000"}
+                        onChange={setNewClassColor}
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={handleAddClass}>Add Class</Button>
                 </div>
-                <Button onClick={handleAddClass}>Add Class</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
 
-          <div className="mt-4">
-            <h5 className="mb-4 text-xs md:text-base">Select a Class </h5>
-            <ClassPicker
-              onClassSelect={(selected) => {
-                if (selected) {
-                  setSelectedClass(selected);
-                }
-              }}
-              selectedClass={selectedClass}
-              classes={classes}
-            />
-          </div>
-
-          <div className="mb-4">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept="image/*"
-              className="hidden"
-            />
-            <h2 className="mb-5 mt-6 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
-              Upload
-            </h2>
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              className={buttonClass(false)}
-            >
-              <FaUpload color="black" className="mr-2" />
-              Upload Image
-            </Button>
-          </div>
-
-          <h2 className="mb-4 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
-            Tools
-          </h2>
-          <div className="space-y-2">
-            <Button
-              onClick={() => handleSetTool("brush")}
-              className={buttonClass(tool === "brush")}
-            >
-              <FaPaintBrush size={10} className="mr-2" />
-              Brush
-            </Button>
-            <Button
-              onClick={() => handleSetTool("polygon")}
-              className={buttonClass(tool === "polygon")}
-            >
-              <FaDrawPolygon className="mr-2" />
-              Polygon
-            </Button>
-            <Button onClick={undo} className={buttonClass(false)}>
-              <FaUndo className="mr-2" />
-              Undo
-            </Button>
-            <Button
-              onClick={() => canvasRef.current?.toggleAnnotationsView()}
-              className={buttonClass(false)}
-            >
-              <FaEraser className="mr-2" />
-              Toggle Annotations View
-            </Button>
-          </div>
-
-          {tool === "brush" && (
             <div className="mt-4">
-              <label className="mb-2 block text-xs font-medium md:text-sm">
-                {tool === "brush" ? "Brush" : "Eraser"} Size: {brushSize}px
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="50"
-                value={brushSize}
-                onChange={(e) => setBrushSize(Number(e.target.value))}
-                className="w-full"
+              <h5 className="mb-4 text-xs md:text-base">Select a Class </h5>
+              <ClassPicker
+                onClassSelect={(selected) => {
+                  if (selected) {
+                    setSelectedClass(selected);
+                  }
+                }}
+                selectedClass={selectedClass}
+                classes={classes}
               />
             </div>
-          )}
 
-          <h2 className="mb-4 mt-2 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
-            Export
-          </h2>
-          <Button onClick={handleExport} className={buttonClass(false)}>
-            <FaDownload className="mr-2" color="black" />
-            Export COCO
-          </Button>
+            <div className="mb-4">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <h2 className="mb-5 mt-6 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
+                Upload
+              </h2>
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                className={buttonClass(false)}
+              >
+                <FaUpload color="black" className="mr-2" />
+                Upload Image
+              </Button>
+            </div>
+
+            <h2 className="mb-4 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
+              Tools
+            </h2>
+            <div className="space-y-2">
+              <Button
+                onClick={() => handleSetTool("brush")}
+                className={buttonClass(tool === "brush")}
+              >
+                <FaPaintBrush size={10} className="mr-2" />
+                Brush
+              </Button>
+              <Button
+                onClick={() => handleSetTool("polygon")}
+                className={buttonClass(tool === "polygon")}
+              >
+                <FaDrawPolygon className="mr-2" />
+                Polygon
+              </Button>
+              <Button onClick={undo} className={buttonClass(false)}>
+                <FaUndo className="mr-2" />
+                Undo
+              </Button>
+              <Button
+                onClick={() => canvasRef.current?.toggleAnnotationsView()}
+                className={buttonClass(false)}
+              >
+                <FaEraser className="mr-2" />
+                Toggle Annotations View
+              </Button>
+            </div>
+
+            {tool === "brush" && (
+              <div className="mt-4">
+                <label className="mb-2 block text-xs font-medium md:text-sm">
+                  {tool === "brush" ? "Brush" : "Eraser"} Size: {brushSize}px
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="50"
+                  value={brushSize}
+                  onChange={(e) => setBrushSize(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            )}
+
+            <h2 className="mb-4 mt-2 border-t-2 border-gray-500 pt-2 text-xs font-bold md:text-lg">
+              Export
+            </h2>
+            <Button onClick={handleExport} className={buttonClass(false)}>
+              <FaDownload className="mr-2" color="black" />
+              Export COCO
+            </Button>
+          </div>
         </div>
 
         {/* Main canvas container with safe-area padding */}
