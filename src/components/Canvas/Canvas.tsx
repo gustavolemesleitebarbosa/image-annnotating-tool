@@ -216,6 +216,7 @@ const Canvas = forwardRef(
   ({ tool, brushSize, imageUrl, selectedClass, classes }: CanvasProps, ref) => {
     const mainCanvasRef = useRef<FabricCanvas>();
     const containerRef = useRef<HTMLDivElement>(null);
+    const currentImageRef = useRef<FabricImage | null>(null);
     const historyRef = useRef<CanvasState[]>([]);
     const currentPolygonPoints = useRef<Circle[]>([]);
     const currentPolygonLines = useRef<Line[]>([]);
@@ -455,6 +456,63 @@ const Canvas = forwardRef(
       };
     }, []);
 
+    // Add resize handler function
+    const handleResize = useCallback(() => {
+      if (!mainCanvasRef.current || !containerRef.current) return;
+      
+      const canvas = mainCanvasRef.current;
+      const container = containerRef.current;
+      
+      // Get container dimensions
+      const containerRect = container.getBoundingClientRect();
+      const newWidth = containerRect.width;
+      const newHeight = containerRect.height;
+      
+      // Update canvas dimensions
+      canvas.setDimensions({
+        width: newWidth,
+        height: newHeight
+      });
+      
+      // Re-scale background image if it exists
+      if (currentImageRef.current) {
+        const fabricImage = currentImageRef.current;
+        const canvasWidth = canvas.getWidth();
+        const canvasHeight = canvas.getHeight();
+
+        // Calculate scaling to fit the canvas while maintaining aspect ratio
+        const scaleX = canvasWidth / fabricImage.width;
+        const scaleY = canvasHeight / fabricImage.height;
+        const scale = Math.min(scaleX, scaleY);
+
+        // Configure image
+        fabricImage.set({
+          scaleX: scale,
+          scaleY: scale,
+          left: (canvasWidth - fabricImage.width * scale) / 2,
+          top: (canvasHeight - fabricImage.height * scale) / 2,
+          selectable: false,
+        });
+        
+        canvas.backgroundImage = fabricImage;
+      }
+      
+      canvas.renderAll();
+    }, []);
+
+    // Add window resize listener
+    useEffect(() => {
+      window.addEventListener('resize', handleResize);
+      
+      // Also call on mount to ensure proper initial sizing
+      const timeoutId = setTimeout(handleResize, 100);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        clearTimeout(timeoutId);
+      };
+    }, [handleResize]);
+
     // Handle image loading
     useEffect(() => {
       const loadImage = async () => {
@@ -473,6 +531,7 @@ const Canvas = forwardRef(
 
           // Create Fabric Image from loaded HTML Image
           const fabricImage = new FabricImage(img);
+          currentImageRef.current = fabricImage; // Store reference for resize handler
 
           // Clear existing canvas
           mainCanvasRef.current.clear();
@@ -607,10 +666,10 @@ const Canvas = forwardRef(
   `;
 
     return (
-      <div className="relative h-full w-full overflow-y-hidden overscroll-none">
+      <div className="relative h-full w-full overflow-hidden">
         <div
           ref={containerRef}
-          className="relative left-12 h-[calc(100vh-100px)] min-h-[400px] w-[calc(100vw-80px)] md:left-0 md:h-full md:w-full"
+          className="relative h-full w-full"
           style={{ touchAction: "none" }}
         >
           <canvas id="mainCanvas" />
